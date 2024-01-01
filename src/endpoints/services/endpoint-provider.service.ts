@@ -10,11 +10,17 @@ export class EndpointProviderService {
 
     constructor(private configService: ConfigService) {
         const firebaseConfig = this.configService.get<any>('firebase');
-        const app = initializeApp(firebaseConfig);
+        this.app = initializeApp(firebaseConfig);
     }
 
     async getEndpointByPath(pathInfo: PathInfo): Promise<string | undefined> {
-        return await this.getValetKey(`endpoints\${pathInfo.path}`);
+        const vk = await this.getValetKey(`endpoints/${pathInfo.path}`);
+        if (!vk) {
+            return undefined;
+        }
+
+        const res = await fetch(vk);
+        return res.status == 200 ? res.text() : undefined;
     }
 
     private async getValetKey(uri: string): Promise<string | undefined> {
