@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { EndpointsModule } from './endpoints/endpoints.module';
-import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager';
+import { CacheModule } from '@nestjs/cache-manager';
 import { CoreModule } from './core/core.module';
 import { ConfigModule } from '@nestjs/config';
-import config from 'config';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import firebase from 'config/firebase';
+import validation from 'config/endpoints';
+import { DataModule } from './data/data.module';
 
 @Module({
   imports: [
@@ -13,16 +14,14 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     }),
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [config]
+      load: [firebase, validation],
+      ignoreEnvFile: true,
     }),
     CoreModule,
+    DataModule,
     EndpointsModule,
   ],
   providers: [
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: CacheInterceptor,
-    },
   ],
 })
 export class AppModule { }

@@ -1,1 +1,3 @@
-export const nameof = <T>(name: Extract<keyof T, string>): string => name;
+export function hasLiteralValue(source: string | null | undefined): boolean {
+    return !!source && !!source.trim();
+}

@@ -1,35 +1,35 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { EndpointProviderService } from './endpoint-provider.service';
-import { EndpointPathService } from './endpoint-path.service';
-import { MediaType, PathInfo } from '../dtos/path-info';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
+import { Injectable } from '@nestjs/common';
+import { PathInfo } from '../dtos/path-info';
+import { FileStorage } from 'src/data/storage/file-storage.service';
 
 @Injectable()
 export class EndpointService {
-    private static readonly ttl: number = 24 * 60 * 60 * 1000; // one day
     constructor(
-        private readonly endpointPath: EndpointPathService,
-        private readonly endpointProvider: EndpointProviderService,
-        @Inject(CACHE_MANAGER) private cacheManager: Cache) { }
+        private readonly storage: FileStorage) { }
 
-    async getEndpoint(owner: string, name: string, version: string, mediaType: MediaType): Promise<string> {
-        const pi = new PathInfo();
-        pi.owner = owner;
-        pi.name = name;
-        pi.mediaType = mediaType || 'json';
-        pi.version = version || "@latest";
-
-        await this.endpointPath.buildPath(pi);
-        let ep = await this.cacheManager.get<string>(pi.path);
-        if (!ep) {
-            ep = await this.endpointProvider.getEndpointByPath(pi);
-            if (ep) {
-                await this.cacheManager.set(pi.path, ep, EndpointService.ttl);
-            }
+    async getEndpoint(pathInfo: PathInfo): Promise<string> {
+        const vk = await this.getValetKey(`endpoints/${pathInfo.path}`);
+        if (!vk) {
+            return undefined;
         }
 
-        return ep;
+        const res = await fetch(vk);
+        return res.status == 200 ? res.text() : undefined;
+    }
+
+    private async getValetKey(uri: string): Promise<string | undefined> {
+        while (uri.startsWith('/')) {
+            uri = uri.substring(1);
+        }
+        uri = uri.replaceAll("  ", " ").replaceAll(' ', '-').toLowerCase();
+
+        try {
+            return await this.storage.getDownloadUrl(uri);
+        } catch (error) {
+            console.error(error);
+            //log here: ({ data: error });
+            return undefined;
+        }
     }
 }
 
