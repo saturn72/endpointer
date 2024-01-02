@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { EndpointController } from './endpoint.controller';
 import { EndpointService } from './services/endpoint.service';
-import { EndpointValidator } from './services/endpoint-validator/endpoint-validator.service';
+import { CreateEndpointValidator } from './models/create.validator';
 
 
 @Module({
@@ -9,7 +9,7 @@ import { EndpointValidator } from './services/endpoint-validator/endpoint-valida
     controllers: [EndpointController],
     providers: [
         EndpointService,
-        EndpointValidator,
+        CreateEndpointValidator,
     ]
 })
 export class EndpointsModule { } 

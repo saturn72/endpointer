@@ -3,7 +3,7 @@ import { EndpointService } from './services/endpoint.service';
 import { FastifyReply } from 'fastify';
 import { MediaType, PathInfo, mediaTypeToContentType } from './dtos/path-info';
 import { CreateEndpoint as Endpoint } from './dtos/endpoint.dto';
-import { EndpointValidator } from './services/endpoint-validator/endpoint-validator.service';
+import { CreateEndpointValidator } from './models/create.validator';
 import { CreateEndpointModel } from './models/create.model';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
@@ -14,7 +14,7 @@ import { CreateEndpointValidationPipe } from './models/create.validation.pipe';
 export class EndpointController {
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    private readonly endpointValidator: EndpointValidator,
+    private readonly endpointValidator: CreateEndpointValidator,
     private readonly endpointService: EndpointService,
   ) { }
 
@@ -49,7 +49,7 @@ export class EndpointController {
   }
 
   @Post()
-  async createEndpoint(@Body(new CreateEndpointValidationPipe()) endpoint: CreateEndpointModel): Promise<any> {
+  async createEndpoint(@Body(CreateEndpointValidationPipe) endpoint: CreateEndpointModel): Promise<any> {
 
     const e = new Endpoint();
     e.description = endpoint.description;
@@ -57,11 +57,7 @@ export class EndpointController {
     e.name = endpoint.name.trim();
     e.username = "get owner name from JWT";
 
-    const { success, errors } = await this.endpointValidator.validateForCreate(e);
 
-    if (!success) {
-      throw new BadRequestException(errors);
-    }
 
     throw new Error("not implemented yet...")
   }

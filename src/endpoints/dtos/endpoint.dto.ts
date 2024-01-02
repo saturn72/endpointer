@@ -4,5 +4,3 @@ export class CreateEndpoint {
     isPublicEndpoint: boolean;
     username: string;
 }
-
-export type ValidationResponse = { success?: boolean, errors?: string[] };

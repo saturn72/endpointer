@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { EndpointStore } from './data-store.service';
+import { EndpointStore } from './endpoint-store.service';
 
 describe('StoreService', () => {
   let service: EndpointStore;

@@ -1,21 +1,14 @@
-import { ConfigService } from '@nestjs/config';
-import { FirebaseApp, initializeApp } from "firebase/app";
-import { FirebaseStorage, getDownloadURL, getStorage, ref } from "firebase/storage";
+import { getDownloadURL, ref } from "firebase/storage";
 import { Injectable } from '@nestjs/common';
+import { Firebase } from '../firebase';
 
 @Injectable()
 export class FileStorage {
-    private readonly app: FirebaseApp;
-    private readonly storage: FirebaseStorage;
-
-    constructor(private configService: ConfigService) {
-        const firebaseConfig = this.configService.get<any>('firebase');
-        this.app = initializeApp(firebaseConfig);
-        this.storage = getStorage(this.app);
+    constructor(private firebase: Firebase) {
     }
 
     public async getDownloadUrl(uri: string): Promise<string> {
-        const r = ref(this.storage, uri);
+        const r = ref(this.firebase.storage, uri);
         return await getDownloadURL(r);
     }
 }

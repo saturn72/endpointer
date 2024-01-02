@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EndpointController } from './endpoint.controller';
 import { CreateEndpoint } from './dtos/endpoint.dto';
-import { EndpointValidator } from './services/endpoint-validator/endpoint-validator.service';
+import { CreateEndpointValidator } from './models/create.validator';
 import { EndpointService } from './services/endpoint.service';
 import { DataModule } from '../data/data.module';
 
 describe('EndpointController', () => {
   let controller: EndpointController;
   let epService: EndpointService;
-  let epValidator: EndpointValidator;
+  let epValidator: CreateEndpointValidator;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -19,7 +19,7 @@ describe('EndpointController', () => {
     }).compile();
 
     epService = module.get<EndpointService>(EndpointService);
-    epValidator = module.get<EndpointValidator>(EndpointValidator);
+    epValidator = module.get<CreateEndpointValidator>(CreateEndpointValidator);
     controller = module.get<EndpointController>(EndpointController);
   });
 

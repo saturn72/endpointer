@@ -1,12 +1,14 @@
 import { Global, Module } from '@nestjs/common';
-import { EndpointStore } from './stores/data-store.service';
+import { EndpointStore } from './stores/endpoint-store.service';
 import { FileStorage } from './storage/file-storage.service';
+import { Firebase } from './firebase';
 
 @Global()
 @Module({
     providers: [
         EndpointStore,
-        FileStorage
+        FileStorage,
+        Firebase
     ],
     exports: [
         EndpointStore,
