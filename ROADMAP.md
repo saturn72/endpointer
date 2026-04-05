@@ -25,7 +25,7 @@ Never skip a task — each prompt depends on the previous ones completing succes
 
 ## Phase 3 — API app (NestJS — feed delivery)
 
-- [ ] `.prompts/api/001-project-scaffold.md` — NestJS app scaffold, MongoDB + NATS connections, health endpoint
+- [x] `.prompts/api/001-project-scaffold.md` — NestJS app scaffold, MongoDB + NATS connections, health endpoint
 - [ ] `.prompts/api/002-nats-subscriber.md` — subscribe to `datafeed.version.created`, write snapshots to MongoDB
 - [ ] `.prompts/api/003-feed-delivery.md` — `GET /{publisher}/{endpoint}?format=`, Clerk auth, serve from MongoDB
 - [ ] `.prompts/api/004-usage-tracking.md` — write usage records to `postgres-api` on every successful request

@@ -1,0 +1,14 @@
+{
+    "name": "endpointer",
+    "private": true,
+    "packageManager": "pnpm@8.15.0",
+    "scripts": {
+        "build": "pnpm --recursive --parallel run build",
+        "dev": "pnpm --recursive --parallel run dev",
+        "lint": "pnpm --recursive run lint",
+        "test": "pnpm --recursive run test"
+    },
+    "devDependencies": {
+        "typescript": "^5.0.0"
+    }
+}

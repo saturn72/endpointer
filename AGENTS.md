@@ -1,5 +1,14 @@
 # Endpointer — AGENTS.md
 
+## How to run
+Execute the next task in sequence:
+```bash
+./run.sh
+```
+This reads `ROADMAP.md`, finds the first unchecked task, executes the referenced prompt file, marks it done, then commits and pushes. Run once per task. Verify the result before running again.
+
+---
+
 ## Agent identity
 You are a senior full-stack TypeScript engineer working on **Endpointer** — a multi-tenant SaaS datafeed governance platform. Always read `CLAUDE.md` before starting any task. Always read the app-level `CLAUDE.md` when working inside a specific app.
 
@@ -16,12 +25,11 @@ All agentic work is driven by prompt files in `.prompts/`. Each file represents 
 
 ### Examples
 ```
-.prompts/web/001-project-scaffold.md
-.prompts/web/002-clerk-auth-setup.md
-.prompts/web/003-publisher-dashboard-layout.md
+.prompts/infra/001-docker-compose.md
 .prompts/api/001-project-scaffold.md
 .prompts/api/002-nats-subscriber.md
-.prompts/infra/001-docker-compose.md
+.prompts/web/001-project-scaffold.md
+.prompts/web/002-clerk-auth.md
 ```
 
 ### Prompt file structure
@@ -61,63 +69,84 @@ Any constraints, gotchas, or decisions the agent must respect.
 4. Never skip acceptance criteria — verify each one before marking done
 5. Never implement post-MVP features — if something is in the post-MVP backlog, add a `// TODO: post-MVP` comment and stop
 
-### Code quality
-6. TypeScript strict mode — no `any`, no `@ts-ignore`
-7. Zod schemas for every external input (form data, API params, NATS payloads, file uploads)
-8. Every server action and API route must validate input before touching the DB
-9. Never hardcode secrets — always use environment variables
-10. Never store files on local disk — always use S3-compatible storage (MinIO)
+### CLI-first rule (critical)
+6. **Always prefer CLI tools to scaffold, generate, and create content** — never write boilerplate by hand when a CLI can generate it
+7. Use the official CLI for every framework and tool:
+   - Scaffold Next.js app: `pnpm create next-app@latest`
+   - Scaffold NestJS app: `pnpm dlx @nestjs/cli new`
+   - Add NestJS module/service/controller: `nest generate module`, `nest generate service`, `nest generate controller`
+   - Generate Drizzle migrations: `drizzle-kit generate`
+   - Run Drizzle migrations: `drizzle-kit migrate`
+   - Add pnpm workspace package: `pnpm add <pkg> --filter <app>`
+8. Only write files manually when no CLI exists for that output
+9. Always run the CLI first, then modify the generated output — never start from scratch
 
-### Architecture
-11. Never import from `apps/web` inside `apps/api` or vice versa
-12. Cross-app contracts (NATS event types, shared DTOs) live in `packages/types` only
-13. Drizzle schema lives in `packages/db` — only `apps/web` imports it
-14. Each app connects to its own database instance — no shared connections
-15. Clerk is the sole auth provider — never implement custom JWT logic
+### Versioning rule (critical)
+10. **Always use the latest stable version of every package, tool, and utility**
+11. Never pin to a specific version unless a documented compatibility conflict requires it — and if so, add a comment explaining why
+12. When installing packages always use `@latest` tag: `pnpm add <pkg>@latest`
+13. Before scaffolding any app, verify the CLI itself is the latest: `pnpm dlx <cli>@latest`
+
+### Code isolation rule (critical)
+14. **Never share code between `apps/web` and `apps/api`** — they are independent services
+15. Each app defines its own types, utilities, and helpers in its own `src/` directory
+16. No cross-app imports — `apps/web` never imports from `apps/api` and vice versa
+17. The `packages/` directory must never be created — there are no shared packages in this repo
+18. The only cross-app contract is the NATS event payload — documented in `docs/events.md`, each app defines its own local type matching that contract
+
+### CQRS rule (critical)
+19. **Command and Query sides must be fully compatible and fully decoupled**
+20. Command side (`apps/web`) — handles all mutations: publisher/subscriber management, ingestion, approvals
+21. Query side (`apps/api`) — handles all reads: feed delivery, usage tracking
+22. Command and Query sides communicate exclusively via NATS — never via direct HTTP calls, shared DB connections, or shared code
+23. Command side never reads from the Query DB (MongoDB) — it writes to PostgreSQL and publishes NATS events only
+24. Query side never writes to the Command DB (PostgreSQL web) — it reads from MongoDB and writes to its own PostgreSQL only
+25. Adding a new feature must not require modifying both sides simultaneously — each side evolves independently
+26. NATS event payloads are the only coupling point — changes to event schema must be reflected in `docs/events.md` first, then updated in each app independently
+
+### Code quality
+27. TypeScript strict mode — no `any`, no `@ts-ignore`
+28. Zod schemas for every external input (form data, API params, NATS payloads, file uploads)
+29. Every server action and API route must validate input before touching the DB
+30. Never hardcode secrets — always use environment variables
+31. Never store files on local disk — always use S3-compatible storage (MinIO)
 
 ### Git
-16. One prompt file = one logical git commit
-17. Commit message format: `feat({app}): {slug}` (e.g. `feat(web): clerk-auth-setup`)
-18. Never commit `.env` files — only `.env.example`
+32. One prompt file = one logical git commit
+33. Commit message format: `feat({app}): {slug}` (e.g. `feat(web): clerk-auth`)
+34. Never commit `.env` files — only `.env.example`
+35. After every completed prompt: `git add -A && git commit -m 'feat({app}): {slug}' && git push`
 
 ### File output
-19. Every prompt must declare its output files explicitly in the `## Output files` section
-20. Never produce more than one file per prompt unless explicitly listed
-21. Always produce a `.env.example` update when adding new environment variables
+36. Every prompt must declare its output files explicitly in the `## Output files` section
+37. Always produce a `.env.example` update when adding new environment variables
 
 ## Prompt execution order
 
 ### Phase 1 — Infrastructure
 ```
-infra/001-docker-compose.md        # PostgreSQL, MongoDB, NATS, MinIO
+infra/001-docker-compose.md        # PostgreSQL ×2, MongoDB, NATS, MinIO
 ```
 
-### Phase 2 — Shared packages
+### Phase 2 — API app (NestJS — Query side)
 ```
-packages/001-types-scaffold.md     # Shared types, NATS event contracts
-packages/002-db-schema.md          # Drizzle schema (publishers, subscribers, endpoints, datafeeds, usage)
-```
-
-### Phase 3 — API app (NestJS Query service)
-```
-api/001-project-scaffold.md        # NestJS app, pnpm workspace, tsconfig
-api/002-nats-subscriber.md         # Subscribe to DatafeedVersionCreated, update MongoDB
-api/003-feed-delivery.md           # GET /{publisher}/{endpoint}?format=, auth, serve from MongoDB
-api/004-usage-tracking.md          # Write usage count to PostgreSQL on every successful request
+api/001-project-scaffold.md        # nest new, MongoDB + NATS connections, health endpoint
+api/002-nats-subscriber.md         # subscribe to datafeed.version.created, write to MongoDB
+api/003-feed-delivery.md           # GET /{publisher}/{endpoint}?format=, Clerk auth, serve from MongoDB
+api/004-usage-tracking.md          # write usage records to postgres-api on every successful request
 ```
 
-### Phase 4 — Web app (Next.js PWA)
+### Phase 3 — Web app (Next.js — Command side)
 ```
-web/001-project-scaffold.md        # Next.js 15, Tailwind, PWA config, tsconfig
-web/002-clerk-auth.md              # Clerk integration, sign-in, sign-up, role selection
-web/003-dashboard-layout.md        # Sidebar, role-aware nav (publisher/subscriber/both)
-web/004-publisher-datafeed.md      # Create/edit datafeed, create endpoint
-web/005-publisher-upload.md        # File upload → ingestion pipeline → NATS publish
-web/006-publisher-approvals.md     # Approve/reject subscriber requests per endpoint
-web/007-publisher-usage.md         # Usage counts per subscriber per endpoint
-web/008-subscriber-discover.md     # Browse public endpoints, request subscription
-web/009-subscriber-credentials.md  # Generate/rotate client credentials via Clerk
-web/010-subscriber-usage.md        # My pull counts per endpoint
+web/001-project-scaffold.md        # create next-app, PWA config, Clerk, Drizzle, NATS publisher, MinIO
+web/002-db-schema.md               # Drizzle schema inside apps/web/src/db/, generate + migrate via CLI
+web/003-clerk-auth.md              # sign in, sign up, role selection onboarding, route protection
+web/004-dashboard-layout.md        # sidebar, role-aware nav, home overview page
+web/005-publisher-datafeed.md      # publisher profile, create datafeeds, create endpoints
+web/006-publisher-upload.md        # file upload → parse → version bump → MinIO → NATS publish
+web/007-publisher-approvals.md     # approve/reject subscriber requests, publisher usage view
+web/008-subscriber-discover.md     # browse endpoints, request subscriptions, subscription status
+web/009-subscriber-credentials.md  # generate/rotate client credentials, subscriber usage view
 ```
 
 ## Environment variables convention
@@ -129,17 +158,24 @@ Every app must have a `.env.example` at its root. Agent must update it when addi
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
 
-# PostgreSQL (Command)
+# PostgreSQL (Command — postgres-web port 5432)
 DATABASE_URL=
 
 # NATS
-NATS_URL=
+NATS_URL=nats://localhost:4222
 
 # S3-compatible storage (MinIO)
-S3_ENDPOINT=
+S3_ENDPOINT=http://localhost:9000
 S3_ACCESS_KEY=
 S3_SECRET_KEY=
-S3_BUCKET=
+S3_BUCKET=endpointer-feeds
+S3_REGION=us-east-1
+
+# Internal API base URL
+INTERNAL_API_URL=http://localhost:3001
+
+# Public API base URL (shown in endpoint URLs)
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
 ### apps/api
@@ -148,11 +184,17 @@ S3_BUCKET=
 CLERK_SECRET_KEY=
 
 # MongoDB (Query)
-MONGODB_URI=
+MONGODB_URI=mongodb://localhost:27017/endpointer_query
 
-# PostgreSQL (Usage)
-DATABASE_URL=
+# PostgreSQL (Usage — postgres-api port 5433)
+DATABASE_URL=postgresql://user:pass@localhost:5433/endpointer_api
+
+# PostgreSQL (Web — read only, port 5432)
+DATABASE_URL_WEB=postgresql://user:pass@localhost:5432/endpointer_web
 
 # NATS
-NATS_URL=
+NATS_URL=nats://localhost:4222
+
+# App
+PORT=3001
 ```
