@@ -19,7 +19,7 @@ Never skip a task — each prompt depends on the previous ones completing succes
 ## Phase 2 — Shared packages
 
 - [x] `.prompts/web/001-types-scaffold.md` — shared TypeScript types, NATS event contracts (`@endpointer/types`)
-- [ ] `.prompts/web/002-db-schema.md` — Drizzle schema + migrations for `postgres-web` (`@endpointer/db`)
+- [x] `.prompts/web/002-db-schema.md` — Drizzle schema + migrations for `postgres-web` (`@endpointer/db`)
 
 ---
 

@@ -12,7 +12,7 @@ services:
       - postgres_web_data:/var/lib/postgresql/data
       - ./infra/init/postgres-web.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_WEB_USER} -d endpointer_web"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_WEB_USER} -d endpointer_web" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,7 +30,7 @@ services:
       - postgres_api_data:/var/lib/postgresql/data
       - ./infra/init/postgres-api.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_API_USER} -d endpointer_api"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_API_USER} -d endpointer_api" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,7 +47,7 @@ services:
     volumes:
       - mongodb_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,14 +55,14 @@ services:
   nats:
     image: nats:2.10-alpine
     container_name: endpointer-nats
-    command: ["-js"]
+    command: [ "-js" ]
     ports:
       - "4222:4222"
       - "8222:8222"
     volumes:
       - nats_data:/data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -80,7 +80,7 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 30s
       timeout: 20s
       retries: 3
