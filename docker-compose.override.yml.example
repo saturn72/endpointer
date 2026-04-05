@@ -1,0 +1,13 @@
+# docker-compose.override.yml
+# This file is for local development overrides
+# Copy this to docker-compose.override.yml and modify as needed
+# Example overrides:
+# - Change ports to avoid conflicts
+# - Add bind mounts for development
+# - Adjust environment variables
+
+# Example:
+# services:
+#   postgres-web:
+#     ports:
+#       - "5433:5432"  # Change port if 5432 is in use

@@ -1,0 +1,93 @@
+services:
+  postgres-web:
+    image: postgres:16-alpine
+    container_name: endpointer-postgres-web
+    environment:
+      POSTGRES_DB: endpointer_web
+      POSTGRES_USER: ${POSTGRES_WEB_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_WEB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_web_data:/var/lib/postgresql/data
+      - ./infra/init/postgres-web.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_WEB_USER} -d endpointer_web"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-api:
+    image: postgres:16-alpine
+    container_name: endpointer-postgres-api
+    environment:
+      POSTGRES_DB: endpointer_api
+      POSTGRES_USER: ${POSTGRES_API_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_API_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_api_data:/var/lib/postgresql/data
+      - ./infra/init/postgres-api.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_API_USER} -d endpointer_api"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7
+    container_name: endpointer-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: endpointer_query
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: endpointer-nats
+    command: ["-js"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: endpointer-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  postgres_web_data:
+  postgres_api_data:
+  mongodb_data:
+  nats_data:
+  minio_data:

@@ -1,0 +1,3 @@
+-- PostgreSQL initialization script for endpointer_web database
+-- The database is created automatically via POSTGRES_DB environment variable
+-- Add any additional initialization commands here if needed
