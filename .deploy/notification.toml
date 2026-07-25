@@ -1,0 +1,35 @@
+# SeaweedFS filer notification configuration.
+#
+# This file is read once at filer startup. Place it at one of:
+#   ./notification.toml  (weed process working directory)
+#   $HOME/.seaweedfs/notification.toml
+#   /etc/seaweedfs/notification.toml
+#
+# The docker-compose mounts this file at /etc/seaweedfs/notification.toml
+# inside the seaweedfs container.
+#
+# Only one notification target may be enabled at a time. The webhook target
+# here delivers file creation events to the conversion-service.
+
+[notification.webhook]
+enabled      = true
+
+# The conversion-service HTTP server. In docker-compose the service is
+# reachable by its service name. Outside docker-compose, set this to
+# http://localhost:8080/webhook (or wherever the service is listening).
+endpoint     = "http://conversion-service:8080/webhook"
+
+# Only forward create events — the conversion-service ignores all others.
+event_types  = ["create"]
+
+# Include both buckets so the conversion-service receives raw-uploads events
+# (for CSV conversion) AND converted-feeds events (to forward to the
+# versioning-service via VERSIONING_WEBHOOK_URL).
+path_prefixes = ["/buckets/raw-uploads/", "/buckets/converted-feeds/"]
+
+# Retry configuration (defaults are conservative — fine for local dev).
+max_retries          = 3
+backoff_seconds      = 2
+max_backoff_seconds  = 30
+timeout_seconds      = 10
+workers              = 5

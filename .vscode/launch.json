@@ -1,0 +1,68 @@
+{
+    "version": "0.2.0",
+    "compounds": [
+        {
+            "name": "Go: Attach all services",
+            "configurations": [
+                "Go: Attach conversion-service",
+                "Go: Attach versioning-service",
+                "Go: Attach datafeed-service"
+            ]
+        }
+    ],
+    "configurations": [
+        {
+            "name": "Go: Attach conversion-service",
+            "type": "go",
+            "request": "attach",
+            "mode": "remote",
+            "remotePath": "${workspaceFolder}/src/conversion-service",
+            "port": 2345,
+            "host": "127.0.0.1"
+        },
+        {
+            "name": "Go: Attach versioning-service",
+            "type": "go",
+            "request": "attach",
+            "mode": "remote",
+            "remotePath": "${workspaceFolder}/src/versioning-service",
+            "port": 2346,
+            "host": "127.0.0.1"
+        },
+        {
+            "name": "Go: Attach datafeed-service",
+            "type": "go",
+            "request": "attach",
+            "mode": "remote",
+            "remotePath": "${workspaceFolder}/src/datafeed-service",
+            "port": 2347,
+            "host": "127.0.0.1"
+        },
+        {
+            "name": "Next.js: full stack",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "cd src/dashboard && npm run dev",
+            "serverReadyAction": {
+                "action": "debugWithChrome",
+                "killOnServerStop": true,
+                "pattern": "Local:\\s+(https?://\\S+)",
+                "uriFormat": "%s",
+                "webRoot": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Next.js: server-side only",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "cd src/dashboard && npm run dev"
+        },
+        {
+            "name": "Next.js: attach to running",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}/src/dashboard"
+        }
+    ]
+}

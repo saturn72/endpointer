@@ -1,0 +1,75 @@
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    # -filer enables the filer; filer reads notification.toml at startup to
+    # push file-creation events to the conversion-service HTTP webhook.
+    command: server -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json -filer -filer.port=8888 -volume.max=0
+    ports:
+      - "8333:8333" # S3 gateway
+      - "8888:8888" # Filer HTTP
+      - "9333:9333" # Master
+    volumes:
+      - ./tests/seaweedfs-s3.json:/etc/seaweedfs/s3.json
+      - ./notification.toml:/etc/seaweedfs/notification.toml:ro
+      - seaweedfs-data:/data
+
+  conversion-service:
+    build:
+      context: ../src/conversion-service
+      dockerfile: Dockerfile
+    depends_on:
+      - seaweedfs
+    environment:
+      WEBHOOK_ADDR: ${WEBHOOK_ADDR:-:8080}
+      # Forward converted-feeds events to versioning-service after conversion.
+      VERSIONING_WEBHOOK_URL: http://versioning-service:8081/webhook
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_RAW_BUCKET: ${S3_RAW_BUCKET:-raw-uploads}
+      S3_CONVERTED_BUCKET: ${S3_CONVERTED_BUCKET:-converted-feeds}
+    restart: unless-stopped
+
+  versioning-service:
+    build:
+      context: ../src/versioning-service
+      dockerfile: Dockerfile
+    depends_on:
+      - seaweedfs
+      - mongo
+    environment:
+      WEBHOOK_ADDR: ${VERSIONING_WEBHOOK_ADDR:-:8081}
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_CONVERTED_BUCKET: ${S3_CONVERTED_BUCKET:-converted-feeds}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017}
+      MONGODB_DB: ${MONGODB_DB:-endpointer}
+    restart: unless-stopped
+
+  datafeed-service:
+    build:
+      context: ../src/datafeed-service
+      dockerfile: Dockerfile
+    depends_on:
+      - mongo
+    ports:
+      - "8082:8080" # Exposed for manual testing: GET http://localhost:8082/{endpoint_name}
+    environment:
+      PORT: ${DATAFEED_PORT:-8080}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017}
+      MONGODB_DB: ${MONGODB_DB:-endpointer}
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+  seaweedfs-data:

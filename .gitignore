@@ -1,0 +1,13 @@
+# Dependencies
+src/dashboard/node_modules/
+
+# Next.js build output
+src/dashboard/.next/
+src/dashboard/.swc/
+
+# Env files (each component manages its own)
+*.env.local
+*.env.*.local
+
+# IDE
+.vscode/settings.json
