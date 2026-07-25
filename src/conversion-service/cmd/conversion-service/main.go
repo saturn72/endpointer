@@ -127,8 +127,21 @@ func processEvent(ctx context.Context, s3c *s3.Client, rawBucket, convertedBucke
 	}
 	defer getResp.Body.Close()
 
-	// Convert CSV → JSON.
-	jsonBytes, err := converter.Convert(getResp.Body)
+	// Route to format-specific converter by file extension.
+	filename := parts[2]
+	ext := ""
+	if i := strings.LastIndex(filename, "."); i >= 0 {
+		ext = strings.ToLower(filename[i:])
+	}
+
+	var jsonBytes []byte
+	switch ext {
+	case ".xml":
+		jsonBytes, err = converter.ConvertXML(getResp.Body)
+	default:
+		// CSV and any other text-delimited formats fall through to the CSV converter.
+		jsonBytes, err = converter.Convert(getResp.Body)
+	}
 	if err != nil {
 		// Log and skip — do not crash the service on bad input.
 		return fmt.Errorf("converting %s: %w", key, err)
