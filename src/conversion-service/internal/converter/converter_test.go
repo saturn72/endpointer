@@ -54,3 +54,60 @@ func TestConvert(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertXML(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantJSON string
+		wantErr  bool
+	}{
+		{
+			name: "valid XML with multiple records produces array of objects",
+			input: `<?xml version="1.0" encoding="UTF-8"?>
+<feed>
+  <record><id>1</id><name>Alice</name><price>9.99</price></record>
+  <record><id>2</id><name>Bob</name><price>19.99</price></record>
+</feed>`,
+			wantJSON: `[{"id":"1","name":"Alice","price":"9.99"},{"id":"2","name":"Bob","price":"19.99"}]`,
+		},
+		{
+			name:     "XML root with no child records produces empty array",
+			input:    `<feed></feed>`,
+			wantJSON: `[]`,
+		},
+		{
+			name:     "XML with single record produces single-element array",
+			input:    `<feed><item><sku>ABC</sku><qty>5</qty></item></feed>`,
+			wantJSON: `[{"qty":"5","sku":"ABC"}]`,
+		},
+		{
+			name:    "malformed XML returns error",
+			input:   `<feed><record><id>1</id></record`,
+			wantErr: true,
+		},
+		{
+			name:    "empty input returns error",
+			input:   "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := converter.ConvertXML(strings.NewReader(tt.input))
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("ConvertXML() expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ConvertXML() unexpected error: %v", err)
+			}
+			if string(got) != tt.wantJSON {
+				t.Errorf("ConvertXML() = %q, want %q", got, tt.wantJSON)
+			}
+		})
+	}
+}
