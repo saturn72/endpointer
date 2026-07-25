@@ -118,18 +118,28 @@ func ConvertXML(r io.Reader) ([]byte, error) {
 					currentRecord = nil
 				}
 			case 3:
-				// Closing a field element.
+				// Closing a field element — trim the accumulated text and drop
+				// the entry if it is entirely whitespace.
+				if currentRecord != nil && currentField != "" {
+					trimmed := strings.TrimSpace(currentRecord[currentField])
+					if trimmed == "" {
+						delete(currentRecord, currentField)
+					} else {
+						currentRecord[currentField] = trimmed
+					}
+				}
 				currentField = ""
 			}
 			depth--
 
 		case xml.CharData:
-			// Text content inside a field element (depth == 3).
+			// Accumulate raw text for the current field. Go's xml.Decoder can
+			// emit multiple CharData tokens for a single element (e.g. when
+			// the text is interrupted by entity references like &amp;), so we
+			// concatenate rather than overwrite. Trimming is deferred to the
+			// EndElement handler above.
 			if depth == 3 && currentRecord != nil && currentField != "" {
-				val := strings.TrimSpace(string(t))
-				if val != "" {
-					currentRecord[currentField] = val
-				}
+				currentRecord[currentField] += string(t)
 			}
 		}
 	}

@@ -91,6 +91,19 @@ func TestConvertXML(t *testing.T) {
 			input:   "",
 			wantErr: true,
 		},
+		{
+			// Go's xml.Decoder emits a separate CharData token for each
+			// entity-reference expansion (e.g. &amp; → two tokens: "AT" and "&T").
+			// The accumulation fix ensures all tokens are joined, not the last one only.
+			name:  "field value with XML entities is fully preserved",
+			input: `<feed><record><name>AT&amp;T</name><note>1&lt;2&gt;0</note></record></feed>`,
+			wantJSON: `[{"name":"AT\u0026T","note":"1\u003c2\u003e0"}]`,
+		},
+		{
+			name:     "whitespace-only field value is omitted from record",
+			input:    `<feed><record><id>1</id><empty>   </empty></record></feed>`,
+			wantJSON: `[{"id":"1"}]`,
+		},
 	}
 
 	for _, tt := range tests {

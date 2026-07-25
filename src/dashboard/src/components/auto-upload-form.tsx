@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getUploadUrl, finalizeUpload, type UploadResult, type FileFormat } from '@/actions/endpoints';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,14 @@ export function AutoUploadForm({ endpointName }: AutoUploadFormProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const [result, setResult] = useState<UploadResult | null>(null);
+    const router = useRouter();
+    // Tracks pending refresh timers so a new upload can cancel in-flight polls.
+    const refreshTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+    const clearRefreshTimers = () => {
+        refreshTimers.current.forEach(clearTimeout);
+        refreshTimers.current = [];
+    };
 
     async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
@@ -22,6 +31,7 @@ export function AutoUploadForm({ endpointName }: AutoUploadFormProps) {
 
         setResult(null);
         setUploading(true);
+        clearRefreshTimers();
 
         // ── Step 1: get presigned POST URL from the server ────────────────────
         const urlResult = await getUploadUrl(endpointName, file.name);
@@ -64,8 +74,17 @@ export function AutoUploadForm({ endpointName }: AutoUploadFormProps) {
         setResult(finalResult);
         setUploading(false);
 
-        if (finalResult.status === 'success' && fileInputRef.current) {
-            fileInputRef.current.value = '';
+        if (finalResult.status === 'success') {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            // Refresh immediately so the page reflects the accepted upload.
+            // The conversion+versioning pipeline is async so we also poll at
+            // short intervals to pick up the new version entry once it lands.
+            router.refresh();
+            refreshTimers.current = [
+                setTimeout(() => router.refresh(), 3000),
+                setTimeout(() => router.refresh(), 8000),
+                setTimeout(() => router.refresh(), 15000),
+            ];
         }
     }
 
