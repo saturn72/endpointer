@@ -1,0 +1,101 @@
+product_id	product_name	category	price	quantity	manufacturer	expiry_date	location	barcode	description
+1	Chili Beans (canned)	Food - Canned Goods	408.33	820	Topicstorm	6/16/2023	Suite 85	2094938876498	elit proin interdum mauris non ligula pellentesque ultrices phasellus id sapien
+2	Slingback Sandals	Clothing - Footwear	641.14	100	Innojam	1/27/2023	Apt 1137	7081593314848	adipiscing elit proin risus praesent lectus vestibulum quam sapien varius ut blandit non
+3	Garden Hose Reel	Garden	133.13	203	Youbridge	8/26/2022	10th Floor	5113547569380	luctus et ultrices posuere cubilia curae donec pharetra magna vestibulum aliquet ultrices erat tortor sollicitudin mi sit amet lobortis
+4	Eco-Friendly Beeswax Wraps	Kitchen	370.95	815	Gigaclub	6/27/2023	PO Box 73396	3672394807142	eget rutrum at lorem integer tincidunt ante vel ipsum praesent blandit lacinia
+5	Garden Tool Set with Carrying Bag	Garden	712.41	715	Linkbuzz	1/10/2023	PO Box 98307	5705540213052	quis justo maecenas rhoncus aliquam lacus morbi quis tortor id nulla ultrices aliquet maecenas leo odio condimentum id luctus
+6	Ceramic Cookware Set	Kitchen	110.45	964	Zoombox	1/18/2022	PO Box 1702	1426113754876	velit id pretium iaculis diam erat fermentum justo nec condimentum neque sapien placerat ante nulla justo aliquam quis
+7	Pet Water Fountain	Pets	348.96	893	Yakijo	11/23/2023	2nd Floor	1854615932331	libero convallis eget eleifend luctus ultricies eu nibh quisque id
+8	Essential Oil Roller Bottles	Health	571.2	850	Dabvine	12/22/2022	Room 648	5278172901438	in magna bibendum imperdiet nullam orci pede venenatis non sodales sed tincidunt eu felis fusce
+9	Maple Cinnamon Almonds	Food - Nuts	413.77	341	Brightdog	4/8/2022	Suite 84	4062954927890	risus semper porta volutpat quam pede lobortis ligula sit amet eleifend pede
+10	Rechargeable Electric Toothbrush	Health	254.5	298	Pixonyx	2/20/2023	Apt 1263	3184644616509	maecenas tincidunt lacus at velit vivamus vel nulla eget eros elementum pellentesque quisque porta volutpat erat quisque erat eros
+11	Skincare Set	Beauty	491.49	21	Edgeblab	6/27/2022	Room 9	6208310723046	quis augue luctus tincidunt nulla mollis molestie lorem quisque ut erat curabitur gravida nisi at nibh in hac
+12	Low-Fat Yogurt	Food - Dairy	384.97	432	Photobug	7/25/2023	15th Floor	9900192414906	lacus at velit vivamus vel nulla eget eros elementum pellentesque
+13	Banana Nut Muffins	Food - Bakery	857.1	844	Photofeed	2/12/2023	11th Floor	3818024693046	congue risus semper porta volutpat quam pede lobortis ligula sit amet eleifend pede
+14	Wooden Kitchen Utensil Set	Kitchen	65.32	794	Linktype	4/11/2023	Apt 488	4272675522901	mi in porttitor pede justo eu massa donec dapibus duis at velit eu
+15	Smart LED Light Strip	Home	117.59	856	Realfire	1/30/2023	Room 1922	8502431929157	ut dolor morbi vel lectus in quam fringilla rhoncus mauris
+16	Vegetable Pizza Rolls	Food - Frozen Foods	459.99	733	Twinte	6/2/2023	Apt 419	5257011568021	turpis sed ante vivamus tortor duis mattis egestas metus aenean fermentum donec ut mauris eget massa
+17	Chocolate Fudge Brownie Mix	Food - Baking	29.48	383	Meemm	4/7/2022	15th Floor	7305912275505	at nibh in hac habitasse platea dictumst aliquam augue quam sollicitudin vitae consectetuer eget rutrum at lorem integer
+18	Portable Air Compressor	Automotive	199.33	481	Flashset	9/28/2022	PO Box 21753	3532483619206	erat fermentum justo nec condimentum neque sapien placerat ante nulla justo aliquam quis turpis eget elit sodales scelerisque
+19	Rolling Cooler	Outdoor	119.26	359	Thoughtsphere	1/3/2023	Room 255	3915824677692	condimentum neque sapien placerat ante nulla justo aliquam quis turpis eget
+20	Garden Tool Set	Garden	425.53	70	Yacero	9/17/2023	Room 1226	8406367766754	curae nulla dapibus dolor vel est donec odio justo sollicitudin ut suscipit a feugiat et eros vestibulum ac est lacinia
+21	Wireless Game Controller	Gaming	826.94	639	Avavee	7/7/2022	Apt 624	8641820223687	augue aliquam erat volutpat in congue etiam justo etiam pretium iaculis justo in hac habitasse platea dictumst etiam faucibus
+22	Nordic Berry Smoothie	Food - Frozen Foods	5.13	543	Meeveo	4/6/2023	PO Box 15773	5436789304241	congue etiam justo etiam pretium iaculis justo in hac habitasse
+23	Dried Mango Slices	Food - Snacks	866.81	610	Eamia	8/14/2022	Room 374	1330689174060	cubilia curae mauris viverra diam vitae quam suspendisse potenti nullam porttitor
+24	Kids' Learning Tablet	Electronics	607.78	71	Oyonder	1/10/2022	PO Box 13145	5785366029169	congue diam id ornare imperdiet sapien urna pretium nisl ut
+25	Men's Waterproof Hiking Boots	Footwear	181.16	213	Zazio	12/16/2023	Suite 15	8818762185299	primis in faucibus orci luctus et ultrices posuere cubilia curae donec pharetra magna vestibulum aliquet ultrices erat
+26	Chicken Broth	Food - Canned Goods	442.86	525	Shuffledrive	5/6/2023	Room 813	6106742234457	posuere cubilia curae mauris viverra diam vitae quam suspendisse potenti nullam porttitor lacus at turpis donec posuere metus vitae ipsum
+27	Asian Salad Mix	Food - Produce	783.3	246	Trunyx	11/28/2022	Room 1886	3693168686832	tortor id nulla ultrices aliquet maecenas leo odio condimentum id luctus nec
+28	Winter Insulated Jacket	Clothing	715.0	714	Ooba	10/9/2022	Suite 80	1308356589678	convallis eget eleifend luctus ultricies eu nibh quisque id justo
+29	Winter Knit Beanie	Clothing	201.51	788	Quimba	2/3/2023	Suite 91	8949380498326	lectus vestibulum quam sapien varius ut blandit non interdum in ante vestibulum ante ipsum
+30	Measuring Cups Set	Kitchen	338.04	240	Twimm	2/27/2022	6th Floor	4275158475420	quisque arcu libero rutrum ac lobortis vel dapibus at diam
+31	Adjustable Window Blind	Home	378.76	952	Jatri	7/23/2022	Suite 69	3168277451614	dictumst maecenas ut massa quis augue luctus tincidunt nulla mollis molestie lorem quisque ut erat curabitur
+32	Digital Wireless Camera	Home Security	474.03	885	Brightbean	3/11/2022	1st Floor	4950378695878	dui proin leo odio porttitor id consequat in consequat ut nulla sed accumsan felis ut at dolor quis
+33	Peach Fruit Cups	Food - Snacks	961.68	715	Twimm	12/12/2023	Room 488	5399413957867	augue vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae donec pharetra magna
+34	Bodyweight Resistance Bands	Fitness	325.56	42	Realbridge	6/29/2022	Apt 962	7844466684466	justo eu massa donec dapibus duis at velit eu est congue elementum in hac habitasse platea dictumst morbi
+35	Chilli Lime Corn on the Cob	Food - Vegetable	225.65	300	Gigabox	12/8/2022	Apt 1251	4979722292869	erat eros viverra eget congue eget semper rutrum nulla nunc purus phasellus in felis
+36	Pumpkin Waffles	Food - Breakfast	199.73	106	Wordpedia	11/9/2023	Apt 1941	7183644005014	maecenas pulvinar lobortis est phasellus sit amet erat nulla tempus vivamus in felis eu sapien
+37	Mobile Workbench	Tools	96.44	674	Wordtune	7/14/2022	Suite 17	3517056322360	sagittis nam congue risus semper porta volutpat quam pede lobortis ligula
+38	Popcorn Chicken	Food - Frozen	579.25	978	Babbleblab	4/27/2022	Room 1316	1930588814538	amet nulla quisque arcu libero rutrum ac lobortis vel dapibus at diam nam tristique tortor eu
+39	Wireless Keyboard and Mouse Combo	Electronics	151.57	657	Tazz	7/28/2023	PO Box 17919	4229033697698	eleifend luctus ultricies eu nibh quisque id justo sit amet sapien dignissim vestibulum vestibulum ante ipsum primis in
+40	Honey BBQ Ribs	Food - Meat	298.37	506	Kwinu	5/16/2023	Suite 70	8573449468141	iaculis congue vivamus metus arcu adipiscing molestie hendrerit at vulputate vitae nisl aenean lectus
+41	Dog Waste Bag Dispenser	Pets	55.01	806	Realcube	7/3/2023	Room 1686	6367556337572	quis orci eget orci vehicula condimentum curabitur in libero ut massa volutpat
+42	Digital Voice Recorder	Electronics	638.95	421	Brainlounge	6/16/2022	Suite 53	8001291390524	ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae duis
+43	Pressure Cooker	Kitchen	127.54	829	Zoomlounge	8/27/2022	Apt 1831	6247733861030	pellentesque quisque porta volutpat erat quisque erat eros viverra eget congue eget semper rutrum nulla nunc purus phasellus in
+44	Puffed Rice Cake	Food - Snacks	67.85	854	Trunyx	10/11/2023	Room 1303	2393192246534	nulla integer pede justo lacinia eget tincidunt eget tempus vel pede morbi porttitor lorem id ligula suspendisse ornare consequat lectus
+45	Foot Massager Machine	Health	589.51	652	Bluejam	2/2/2022	2nd Floor	3053814419403	mauris enim leo rhoncus sed vestibulum sit amet cursus id turpis integer aliquet massa id lobortis
+46	Basmati Rice	Food - Grains	411.04	137	Flipopia	7/25/2022	Apt 274	7981451887249	ultrices phasellus id sapien in sapien iaculis congue vivamus metus arcu adipiscing molestie hendrerit
+47	Children's Educational Puzzle	Toys	599.82	816	Camimbo	8/18/2022	Room 1514	3042425695340	diam erat fermentum justo nec condimentum neque sapien placerat ante nulla justo aliquam
+48	Shoe Organizer	Home	41.56	20	Skibox	4/26/2022	Suite 31	4836406604732	leo rhoncus sed vestibulum sit amet cursus id turpis integer aliquet massa id
+49	Harvest Grain Salad	Food - Salads	92.29	822	Meevee	10/15/2023	Suite 70	3087518027182	nulla tempus vivamus in felis eu sapien cursus vestibulum proin eu mi nulla
+50	Applewood Smoked Bacon	Food - Meat	531.04	855	Zoombeat	10/24/2023	PO Box 68342	2494713895800	semper porta volutpat quam pede lobortis ligula sit amet eleifend pede libero
+51	Pear and Gorgonzola Salad	Food - Salads	211.37	661	Gabtune	12/22/2022	Suite 41	8556786647891	consequat metus sapien ut nunc vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae
+52	Overnight Hiking Backpack	Outdoor	715.75	877	Brainlounge	10/28/2023	Room 1874	8421757178509	nam nulla integer pede justo lacinia eget tincidunt eget tempus
+53	Pet Water Fountain	Pets	606.73	90	Gabtune	10/22/2023	Room 457	8173843479475	ut mauris eget massa tempor convallis nulla neque libero convallis eget eleifend luctus ultricies eu
+54	Casual Long Cardigan	Clothing - Outerwear	99.11	791	Buzzbean	8/15/2022	PO Box 12027	8585772093570	eget semper rutrum nulla nunc purus phasellus in felis donec semper sapien a libero nam dui proin leo odio
+55	Pistachio Ice Cream	Food - Frozen Desserts	241.98	540	Centimia	8/20/2022	Apt 1794	4853660980551	in sagittis dui vel nisl duis ac nibh fusce lacus purus aliquet
+56	Dill Pickle Chips	Food - Condiments	771.85	957	Jabbersphere	12/14/2023	PO Box 84968	9261984310539	lectus aliquam sit amet diam in magna bibendum imperdiet nullam orci pede
+57	Beef Enchilada Casserole	Food - Prepared Meals	224.55	663	Thoughtworks	10/4/2022	Room 1808	2955269402452	quis odio consequat varius integer ac leo pellentesque ultrices mattis
+58	Sliced Cucumbers	Food - Produce	319.59	417	Jamia	4/17/2023	Suite 88	7593129299124	proin leo odio porttitor id consequat in consequat ut nulla sed accumsan felis ut at dolor quis odio
+59	Portable Hammock	Outdoor	246.07	6	Jaloo	12/5/2023	PO Box 1853	6872125378590	ipsum praesent blandit lacinia erat vestibulum sed magna at nunc commodo placerat praesent blandit nam nulla integer pede justo lacinia
+60	Ergonomic Mouse Pad with Wrist Support	Office	935.77	959	Dynava	7/4/2022	11th Floor	6284821599391	curae donec pharetra magna vestibulum aliquet ultrices erat tortor sollicitudin mi sit amet lobortis
+61	Camping Chair with Cooler	Outdoor	514.05	472	Aimbo	12/1/2023	Suite 6	3838275336722	dignissim vestibulum vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae nulla
+62	Electric Ice Cream Maker	Kitchen	351.24	895	Oyoloo	1/4/2023	PO Box 70680	5501550794121	justo sit amet sapien dignissim vestibulum vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere
+63	Creamy Tomato Basil Soup	Food - Canned Goods	542.32	442	Kwimbee	2/24/2023	Suite 95	3670799041678	luctus cum sociis natoque penatibus et magnis dis parturient montes nascetur ridiculus mus vivamus vestibulum sagittis
+64	Belted Trench Coat	Clothing - Outerwear	319.3	840	Trudoo	5/13/2022	Suite 63	1576596826770	eu tincidunt in leo maecenas pulvinar lobortis est phasellus sit amet erat nulla tempus vivamus in felis eu sapien
+65	Spicy Roasted Nuts	Food - Snacks	22.76	293	Izio	6/12/2023	Suite 51	9016340765846	erat volutpat in congue etiam justo etiam pretium iaculis justo in hac habitasse platea dictumst etiam faucibus
+66	Sunglasses	Accessories	571.11	386	Camimbo	10/20/2023	Apt 226	2288164936459	sapien cursus vestibulum proin eu mi nulla ac enim in tempor
+67	Almond Crunch Granola Bars	Food - Snacks	218.12	739	Jetpulse	12/10/2023	17th Floor	3770722674086	lacus at turpis donec posuere metus vitae ipsum aliquam non
+68	Spicy Roasted Nuts	Food - Snacks	761.2	76	Brainverse	8/7/2023	PO Box 8238	4253309754239	quis justo maecenas rhoncus aliquam lacus morbi quis tortor id nulla ultrices aliquet maecenas leo odio
+69	Mango Chili Salsa	Food - Condiments	86.72	425	Youspan	10/28/2023	Apt 1444	4104023248399	vel enim sit amet nunc viverra dapibus nulla suscipit ligula in lacus curabitur at ipsum ac tellus
+70	Teriyaki Beef Jerky	Food - Snacks	711.82	626	Zoombeat	12/26/2022	Apt 314	1015019784953	nulla ut erat id mauris vulputate elementum nullam varius nulla facilisi cras non
+71	Smart Thermos	Fitness	129.73	150	Leexo	2/27/2023	Room 847	2637114019319	risus praesent lectus vestibulum quam sapien varius ut blandit non interdum in ante
+72	Butternut Squash Soup	Food - Soups	869.4	930	Brainverse	10/19/2022	Apt 1234	2459815879593	tempus vivamus in felis eu sapien cursus vestibulum proin eu mi nulla
+73	Whisk Set	Kitchen	821.04	656	Jetwire	3/24/2023	PO Box 53573	9156095761092	quam pharetra magna ac consequat metus sapien ut nunc vestibulum ante ipsum primis in faucibus orci luctus et
+74	Apple Cinnamon Granola	Food - Breakfast	376.71	447	Miboo	4/18/2023	Room 109	2566358058906	in libero ut massa volutpat convallis morbi odio odio elementum eu
+75	Collapsible Pet Dog Bowl	Pets	362.28	39	Nlounge	12/18/2022	7th Floor	9150363370247	augue aliquam erat volutpat in congue etiam justo etiam pretium iaculis justo in hac
+76	Sweet and Sour Sauce	Food - Condiments	759.05	199	Thoughtworks	11/24/2023	PO Box 62318	7518177523286	mattis odio donec vitae nisi nam ultrices libero non mattis pulvinar nulla pede ullamcorper augue a suscipit
+77	Digital Food Thermometer	Kitchen	323.8	700	Fatz	11/17/2022	Suite 66	9140741878381	justo eu massa donec dapibus duis at velit eu est congue elementum in hac habitasse platea dictumst
+78	Luxury Yoga Mat	Fitness	677.5	167	Skibox	4/19/2022	PO Box 42767	2079632773622	et magnis dis parturient montes nascetur ridiculus mus vivamus vestibulum sagittis sapien cum sociis natoque penatibus et
+79	Kale Salad with Lemon Dressing	Food - Salads	636.72	799	Meevee	4/16/2022	Room 1812	2446025593742	dis parturient montes nascetur ridiculus mus etiam vel augue vestibulum rutrum rutrum neque aenean auctor gravida
+80	Spinach and Feta Wraps	Food - Prepared Foods	751.77	969	Riffpath	5/17/2023	4th Floor	9479322058802	pulvinar sed nisl nunc rhoncus dui vel sem sed sagittis nam
+81	Mushrooms	Food - Produce	152.99	193	Yacero	2/28/2022	Suite 3	2436830734625	ultrices enim lorem ipsum dolor sit amet consectetuer adipiscing elit proin interdum
+82	Smart Home Hub	Smart Home	646.55	629	Pixoboo	3/4/2022	Suite 13	1450635763653	neque duis bibendum morbi non quam nec dui luctus rutrum nulla
+83	Chicken Parmesan Dinner Kit	Food - Frozen Meals	587.62	479	Babbleset	9/18/2023	5th Floor	6913275266013	sollicitudin mi sit amet lobortis sapien sapien non mi integer ac neque duis bibendum
+84	Electric Wine Opener	Kitchen	51.12	514	Demimbu	3/6/2022	Apt 737	8524093399196	vestibulum quam sapien varius ut blandit non interdum in ante vestibulum ante ipsum primis in faucibus orci luctus et
+85	Bluetooth Car Adapter	Automotive	126.23	948	Rhyzio	10/16/2023	Suite 33	2745307316412	phasellus sit amet erat nulla tempus vivamus in felis eu sapien cursus vestibulum proin
+86	Italian Meatballs	Food - Meat	693.75	700	Thoughtbeat	6/6/2023	Room 920	4941032530259	massa quis augue luctus tincidunt nulla mollis molestie lorem quisque ut erat
+87	Peach Halves (canned)	Food - Canned Goods	395.77	335	Riffpedia	2/9/2022	PO Box 50971	1077619263926	tincidunt eget tempus vel pede morbi porttitor lorem id ligula suspendisse ornare consequat lectus in est risus auctor sed
+88	Mesh Sports Leggings	Clothing - Activewear	115.24	675	Youfeed	5/19/2023	PO Box 54133	8907699569105	justo aliquam quis turpis eget elit sodales scelerisque mauris sit amet eros
+89	Thai Peanut Noodles	Food - Pasta	840.23	666	Fatz	4/4/2023	Suite 68	4716498731081	proin interdum mauris non ligula pellentesque ultrices phasellus id sapien in sapien iaculis congue vivamus
+90	Peach Green Tea	Food - Beverages	637.21	714	Devbug	4/15/2022	PO Box 8624	7014521962829	praesent blandit nam nulla integer pede justo lacinia eget tincidunt eget tempus vel pede morbi
+91	Lemon Pepper Seasoning	Food - Seasonings	109.16	667	Oyope	2/11/2022	Apt 1141	2294526762388	dolor vel est donec odio justo sollicitudin ut suscipit a
+92	Vanilla Protein Powder	Food - Health/Protein	780.99	109	Mycat	9/9/2023	Apt 197	9709307389514	semper sapien a libero nam dui proin leo odio porttitor id consequat in consequat ut nulla sed accumsan
+93	Honey Mustard Dip	Food - Condiments	798.26	482	Skinix	9/19/2023	9th Floor	1193046164551	dui vel sem sed sagittis nam congue risus semper porta volutpat quam pede lobortis ligula sit amet eleifend pede
+94	Tomato Basil Pasta Sauce	Food - Sauces	118.96	877	Twitterwire	4/21/2022	Suite 76	4230770623112	sit amet sapien dignissim vestibulum vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia
+95	Sustainable Wooden Toys	Toys	144.67	452	Quaxo	3/21/2023	Apt 683	9244963042095	convallis morbi odio odio elementum eu interdum eu tincidunt in leo maecenas pulvinar lobortis est phasellus sit amet
+96	Sweet Corn Fritters	Food - Frozen	748.99	782	Youspan	12/25/2022	Apt 1085	5225386294353	volutpat in congue etiam justo etiam pretium iaculis justo in hac habitasse platea dictumst etiam faucibus cursus urna ut
+97	Guitar Tuner	Music	701.47	831	Zooxo	12/17/2023	20th Floor	2680753956419	eu tincidunt in leo maecenas pulvinar lobortis est phasellus sit amet erat nulla tempus
+98	DIY Organic Gardening Kit	Garden	862.6	813	Ntag	5/17/2023	Suite 77	2309365587378	donec vitae nisi nam ultrices libero non mattis pulvinar nulla pede ullamcorper augue a suscipit
+99	Nutty Quinoa Salad	Food - Salads	390.98	914	Vimbo	7/18/2023	PO Box 27449	5267111096124	duis at velit eu est congue elementum in hac habitasse platea dictumst morbi vestibulum velit id pretium iaculis
+100	Juice Extractor	Kitchen	415.13	953	Kaymbo	4/7/2022	Room 1692	2226745880778	id ligula suspendisse ornare consequat lectus in est risus auctor sed tristique in tempus sit
