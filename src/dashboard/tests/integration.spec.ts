@@ -18,6 +18,7 @@
  *  10 · Format Registry (unit test)
  *  11 · JSON Format Support
  *  12 · INI Format Support
+ *  13 · Duplicate Upload Detection
  */
 
 import { test, expect, type Page } from '@playwright/test';
@@ -105,8 +106,7 @@ async function createEndpointViaUi(page: Page, name: string, idField?: string): 
     await page.locator('input[name="name"]').fill(name);
     if (idField) await page.locator('input[name="id_field"]').fill(idField);
     await page.getByRole('button', { name: 'Create' }).click();
-    await expect(page).toHaveURL('/endpoints');
-    await page.click(`a[href="/endpoints/${name}"]`);
+    // createEndpoint now redirects directly to the endpoint detail page.
     await expect(page).toHaveURL(`/endpoints/${name}`);
 }
 
@@ -1402,6 +1402,76 @@ test.describe('12 · INI Format Support', () => {
         await expect(page.locator('[role="alert"]')).toBeVisible({ timeout: 15_000 });
         await expect(page.locator('[role="alert"]')).toContainText('duplicate');
         await assertS3KeyGone(keyRef.value);
+        await deleteEndpoint(name);
+        await deleteS3Prefix(name);
+    });
+});
+
+// ════════════════════════════════════════════════════════════════════════════════
+// 13 · DUPLICATE UPLOAD DETECTION
+// ════════════════════════════════════════════════════════════════════════════════
+//
+// Verifies that re-uploading a byte-for-byte identical file to the same endpoint
+// is blocked before finalization, and that a different file proceeds normally.
+
+test.describe('13 · Duplicate Upload Detection', () => {
+    test('uploading the same file twice is blocked — error shown + second S3 object deleted', async ({ page }) => {
+        const name = uid();
+        await createEndpointViaUi(page, name);
+
+        const csvContent = 'id,name\n1,Alice\n2,Bob\n';
+
+        // First upload — must succeed.
+        const keyRef1 = await captureS3Key(page);
+        await page.locator('input[type="file"]').setInputFiles({
+            name: 'data.csv',
+            mimeType: 'text/csv',
+            buffer: Buffer.from(csvContent),
+        });
+        await expect(page.locator('[role="alert"]')).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('[role="alert"]')).toContainText('successfully');
+        expect(keyRef1.value).not.toBeNull();
+
+        // Second upload — identical file content, must be blocked.
+        const keyRef2 = await captureS3Key(page);
+        await page.locator('input[type="file"]').setInputFiles({
+            name: 'data.csv',
+            mimeType: 'text/csv',
+            buffer: Buffer.from(csvContent),
+        });
+        await expect(page.locator('[role="alert"]')).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('[role="alert"]')).toContainText('identical to the current version');
+        await assertS3KeyGone(keyRef2.value);
+
+        await deleteEndpoint(name);
+        await deleteS3Prefix(name);
+    });
+
+    test('uploading a different file after a previous upload proceeds normally', async ({ page }) => {
+        const name = uid();
+        await createEndpointViaUi(page, name);
+
+        // First upload.
+        const keyRef1 = await captureS3Key(page);
+        await page.locator('input[type="file"]').setInputFiles({
+            name: 'v1.csv',
+            mimeType: 'text/csv',
+            buffer: Buffer.from('id,name\n1,Alice\n'),
+        });
+        await expect(page.locator('[role="alert"]')).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('[role="alert"]')).toContainText('successfully');
+        expect(keyRef1.value).not.toBeNull();
+
+        // Second upload — different content, must succeed.
+        await captureS3Key(page);
+        await page.locator('input[type="file"]').setInputFiles({
+            name: 'v2.csv',
+            mimeType: 'text/csv',
+            buffer: Buffer.from('id,name\n1,Alice\n2,Bob\n'),
+        });
+        await expect(page.locator('[role="alert"]')).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('[role="alert"]')).toContainText('successfully');
+
         await deleteEndpoint(name);
         await deleteS3Prefix(name);
     });
