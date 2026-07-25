@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { clientPromise, dbName } from '@/lib/mongodb';
@@ -111,7 +111,7 @@ export async function createEndpoint(formData: FormData) {
         redirect('/endpoints?infraError=1');
     }
 
-    redirect('/endpoints');
+    redirect(`/endpoints/${name}`);
 }
 
 // ─── getUploadUrl ─────────────────────────────────────────────────────────────
@@ -189,11 +189,11 @@ export async function finalizeUpload(
     format: FileFormat,
 ): Promise<UploadResult> {
     // Re-verify endpoint (guards against deletion between getUploadUrl and here)
-    let endpointDoc: { id_field?: unknown } | null = null;
+    let endpointDoc: { id_field?: unknown; last_upload_checksum?: string | null } | null = null;
     try {
         const client = await clientPromise;
         const db = client.db(dbName);
-        endpointDoc = await db.collection<{ id_field?: unknown }>('endpoints').findOne({ name: endpointName });
+        endpointDoc = await db.collection<{ id_field?: unknown; last_upload_checksum?: string | null }>('endpoints').findOne({ name: endpointName });
     } catch (err) {
         console.error('finalizeUpload: database error', err);
         return {
@@ -206,6 +206,7 @@ export async function finalizeUpload(
         return { status: 'error', message: 'Endpoint not found. It may have been deleted.' };
     }
     const id_field = (endpointDoc.id_field as string | null) ?? null;
+    const storedChecksum = endpointDoc.last_upload_checksum ?? null;
 
     // Retrieve the uploaded object from S3
     let body: AsyncIterable<Uint8Array> | undefined;
@@ -239,6 +240,25 @@ export async function finalizeUpload(
         return { status: 'error', message: 'File is empty' };
     }
 
+    // Buffer all bytes so we can (a) compute a checksum and (b) hand the same
+    // bytes to the format-specific header parser without re-fetching from S3.
+    // The 10 MB cap enforced by the presigned POST policy bounds memory use here.
+    const chunks: Buffer[] = [];
+    for await (const chunk of body) {
+        chunks.push(Buffer.from(chunk));
+    }
+    const allBytes = Buffer.concat(chunks);
+
+    // ── Duplicate-upload check ────────────────────────────────────────────────
+    const newChecksum = createHash('sha256').update(allBytes).digest('hex');
+    if (storedChecksum !== null && storedChecksum === newChecksum) {
+        await deleteObject(key);
+        return {
+            status: 'error',
+            message: 'This file is identical to the current version — no new version was created.',
+        };
+    }
+
     // ── Format-specific header parsing via the handler registry ─────────────
     // getHandler() is guaranteed to return a handler here because getUploadUrl
     // already validated the extension against the same registry. If it somehow
@@ -249,10 +269,17 @@ export async function finalizeUpload(
         return { status: 'infra-error', message: 'Upload verification failed. Please try again.' };
     }
 
+    // Re-create an AsyncIterable from the buffered bytes so the header parser
+    // gets a fresh stream (the original S3 body has already been consumed above).
+    async function* fromBuffer(buf: Buffer): AsyncIterable<Uint8Array> {
+        yield buf;
+    }
+    const bufferedStream = fromBuffer(allBytes);
+
     // Wrap the stream with a UTF-8 checker for text-based formats.
     // The wrapper is transparent — it passes chunks through unchanged but throws
     // Utf8ValidationError on the first invalid byte sequence.
-    const streamToUse = handler.supportsEncodingCheck ? utf8CheckedStream(body) : body;
+    const streamToUse = handler.supportsEncodingCheck ? utf8CheckedStream(bufferedStream) : bufferedStream;
 
     let parseResult: { headers: string[] } | { error: string };
     try {
@@ -289,6 +316,21 @@ export async function finalizeUpload(
     if (validationError) {
         await deleteObject(key);
         return { status: 'error', message: validationError };
+    }
+
+    // ── Persist checksum for future duplicate detection ───────────────────────
+    // Best-effort: a failure here is logged but does not fail the upload itself.
+    // The file has already been accepted and stored; losing the checksum just
+    // means one duplicate could slip through until the next successful write.
+    try {
+        const client = await clientPromise;
+        const db = client.db(dbName);
+        await db.collection('endpoints').updateOne(
+            { name: endpointName },
+            { $set: { last_upload_checksum: newChecksum } },
+        );
+    } catch (err) {
+        console.error('finalizeUpload: failed to persist checksum', err);
     }
 
     return { status: 'success' };
