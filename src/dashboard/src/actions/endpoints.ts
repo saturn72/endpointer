@@ -336,6 +336,29 @@ export async function finalizeUpload(
     return { status: 'success' };
 }
 
+// ─── setVersionPublished ──────────────────────────────────────────────────────
+// Toggles the `published` flag on a specific version document.
+// Called by the PublishToggle client component on the version detail page.
+
+export async function setVersionPublished(
+    endpointName: string,
+    major: number,
+    minor: number,
+    published: boolean,
+): Promise<void> {
+    try {
+        const client = await clientPromise;
+        const db = client.db(dbName);
+        await db.collection('versions').updateOne(
+            { endpoint_name: endpointName, major, minor },
+            { $set: { published } },
+        );
+    } catch (err) {
+        console.error('setVersionPublished: database error', err);
+        throw new Error('Failed to update publish status. Please try again.');
+    }
+}
+
 // ─── deleteObject ─────────────────────────────────────────────────────────────
 // Best-effort S3 delete used by finalizeUpload for compensating-action cleanup.
 // Logs failure but never throws — callers surface the original error regardless.

@@ -5,6 +5,7 @@ import { Document } from 'mongodb';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ChevronRight, ExternalLink, FileText, AlertTriangle, CheckCircle2, Table2 } from 'lucide-react';
+import { PublishToggle } from '@/components/publish-toggle';
 
 interface VersionDetailDoc extends Document {
     major: number;
@@ -13,6 +14,7 @@ interface VersionDetailDoc extends Document {
     created_at: Date;
     record_count: number | null;
     preview: Record<string, unknown>[];
+    published: boolean;
 }
 
 type Params = Promise<{ name: string; version: string }>;
@@ -42,8 +44,7 @@ export default async function UploadDetailPage({ params }: { params: Params }) {
                         major: 1,
                         minor: 1,
                         warnings: 1,
-                        created_at: 1,
-                        record_count: {
+                        created_at: 1,                        published: 1,                        record_count: {
                             $cond: [{ $isArray: '$content' }, { $size: '$content' }, null],
                         },
                         preview: { $slice: ['$content', 10] },
@@ -100,15 +101,23 @@ export default async function UploadDetailPage({ params }: { params: Params }) {
                         <p className="text-sm text-muted-foreground mt-0.5">{name}</p>
                     </div>
                 </div>
-                <a
-                    href={`${datafeedBase}/${name}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary border border-primary/30 rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors"
-                >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    View Live Feed
-                </a>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <PublishToggle
+                        endpointName={name}
+                        major={major}
+                        minor={minor}
+                        initialPublished={versionDoc.published ?? false}
+                    />
+                    <a
+                        href={`${datafeedBase}/${name}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary border border-primary/30 rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors"
+                    >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        View Live Feed
+                    </a>
+                </div>
             </div>
 
             {/* Upload Details */}
