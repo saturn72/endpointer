@@ -110,9 +110,10 @@ type versionDoc struct {
 	Minor           int         `bson:"minor"`
 	Content         interface{} `bson:"content"`
 	Warnings        []string    `bson:"warnings"`
-	Filename        string      `bson:"filename"`         // original upload filename (e.g. products.csv)
+	Filename        string      `bson:"filename"` // original upload filename (e.g. products.csv)
 	SourceUploadKey string      `bson:"source_upload_key"`
 	CreatedAt       time.Time   `bson:"created_at"`
+	Published       bool        `bson:"published"` // false = not yet live on the public API
 }
 
 // processEvent fetches the JSON object from converted-feeds, assigns the next
