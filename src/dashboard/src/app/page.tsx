@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Database, ArrowUpRight } from 'lucide-react';
 import { ErrorBanner } from '@/components/error-banner';
+import { requireUserId } from '@/lib/session';
 
 export default async function DashboardPage() {
+  const ownerId = await requireUserId();
   let count = 0;
   let activeCount = 0;
   let dbError = false;
@@ -14,9 +16,16 @@ export default async function DashboardPage() {
   try {
     const client = await clientPromise;
     const db = client.db(dbName);
-    count = await db.collection('endpoints').countDocuments();
-    const activeNames: string[] = await db.collection('versions').distinct('endpoint_name');
-    activeCount = activeNames.length;
+    const datafeedIds: string[] = await db
+      .collection('endpoints')
+      .distinct('datafeed_id', { owner_id: ownerId });
+    count = await db.collection('endpoints').countDocuments({ owner_id: ownerId });
+    const activeIds: string[] = await db
+      .collection('versions')
+      .distinct('datafeed_id', { datafeed_id: { $in: datafeedIds } });
+    activeCount = await db
+      .collection('endpoints')
+      .countDocuments({ owner_id: ownerId, datafeed_id: { $in: activeIds } });
   } catch (err) {
     console.error('DashboardPage: database error', err);
     dbError = true;

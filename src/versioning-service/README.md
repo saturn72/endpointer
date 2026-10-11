@@ -20,12 +20,14 @@ object from `converted-feeds`.
 ## MongoDB index
 
 On startup this service ensures a unique compound index on
-`(endpoint_name, major, minor)` in the `versions` collection:
+`(datafeed_id, major, minor)` in the `versions` collection
+(the legacy `endpoint_name` index is dropped if present; see `npm run db:migrate`
+in `src/dashboard` for existing data):
 
 ```js
 db.versions.createIndex(
-  { endpoint_name: 1, major: 1, minor: 1 },
-  { unique: true, name: "endpoint_version_unique" }
+  { datafeed_id: 1, major: 1, minor: 1 },
+  { unique: true, name: "versions_datafeed_unique_version" }
 )
 ```
 

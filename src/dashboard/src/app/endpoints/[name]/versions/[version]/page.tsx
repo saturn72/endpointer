@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ChevronRight, ExternalLink, FileText, AlertTriangle, CheckCircle2, Table2 } from 'lucide-react';
 import { PublishToggle } from '@/components/publish-toggle';
+import { requireUser } from '@/lib/session';
 
 interface VersionDetailDoc extends Document {
     major: number;
@@ -21,6 +22,7 @@ type Params = Promise<{ name: string; version: string }>;
 
 export default async function UploadDetailPage({ params }: { params: Params }) {
     const { name, version } = await params;
+    const { id: ownerId, username } = await requireUser();
 
     const parts = version.split('-');
     const major = parseInt(parts[0] ?? '', 10);
@@ -33,18 +35,20 @@ export default async function UploadDetailPage({ params }: { params: Params }) {
     const client = await clientPromise;
     const db = client.db(dbName);
 
-    const [endpoint, versionDoc] = await Promise.all([
-        db.collection('endpoints').findOne({ name }),
+    const endpoint = await db.collection('endpoints').findOne({ owner_id: ownerId, name });
+    if (!endpoint) notFound();
+
+    const [versionDoc] = await Promise.all([
         db
             .collection('versions')
             .aggregate<VersionDetailDoc>([
-                { $match: { endpoint_name: name, major, minor } },
+                { $match: { datafeed_id: endpoint.datafeed_id, major, minor } },
                 {
                     $project: {
                         major: 1,
                         minor: 1,
                         warnings: 1,
-                        created_at: 1,                        published: 1,                        record_count: {
+                        created_at: 1, published: 1, record_count: {
                             $cond: [{ $isArray: '$content' }, { $size: '$content' }, null],
                         },
                         preview: { $slice: ['$content', 10] },
@@ -109,7 +113,7 @@ export default async function UploadDetailPage({ params }: { params: Params }) {
                         initialPublished={versionDoc.published ?? false}
                     />
                     <a
-                        href={`${datafeedBase}/${name}`}
+                        href={`${datafeedBase}/${username}/${name}/version/${major}.${minor}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-primary border border-primary/30 rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors"

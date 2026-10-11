@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Database, Settings } from 'lucide-react';
+import { LayoutDashboard, Database, Layers, UserRound } from 'lucide-react';
 import {
     Sidebar,
     SidebarContent,
@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 
 const navItems = [
     { title: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { title: 'Datafeeds', href: '/datafeeds', icon: Layers },
     { title: 'Endpoints', href: '/endpoints', icon: Database },
 ];
 
@@ -66,11 +67,12 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton
-                            render={<Link href="/settings" />}
+                            render={<Link href="/profile" />}
+                            isActive={pathname.startsWith('/profile')}
                             className="flex items-center gap-2 text-sm text-sidebar-foreground/80 hover:text-sidebar-foreground"
                         >
-                            <Settings className="h-4 w-4 shrink-0" />
-                            <span>Settings</span>
+                            <UserRound className="h-4 w-4 shrink-0" />
+                            <span>Profile</span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>

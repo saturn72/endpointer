@@ -7,15 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, CloudUpload, FileText, Key, Eye, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { AutoUploadForm } from '@/components/auto-upload-form';
+import { requireUser } from '@/lib/session';
+import { findOwnedDatafeed, backfillOwnerUsername } from '@/lib/datafeeds';
 
 interface EndpointDoc extends Document {
     name: string;
-    id_field: string | null;
+    datafeed_id: string;
     created_at: Date;
 }
 
 interface VersionDoc extends Document {
-    endpoint_name: string;
+    datafeed_id: string;
     major: number;
     minor: number;
     warnings: string[];
@@ -37,6 +39,7 @@ export default async function EndpointDetailPage({
     searchParams: SearchParams;
 }) {
     const { name } = await params;
+    const { id: ownerId, username } = await requireUser();
     const sp = await searchParams;
     const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
     const skip = (page - 1) * PAGE_SIZE;
@@ -47,12 +50,17 @@ export default async function EndpointDetailPage({
     const client = await clientPromise;
     const db = client.db(dbName);
 
-    const [endpoint, recentVersions, totalCount] = await Promise.all([
-        db.collection<EndpointDoc>('endpoints').findOne({ name }),
+    await backfillOwnerUsername(db, ownerId, username);
+    const endpoint = await db.collection<EndpointDoc>('endpoints').findOne({ owner_id: ownerId, name });
+    if (!endpoint) notFound();
+    const datafeed = await findOwnedDatafeed(db, ownerId, endpoint.datafeed_id);
+    const idField = datafeed?.adapter_config.id_field ?? null;
+
+    const [recentVersions, totalCount] = await Promise.all([
         db
             .collection<VersionDoc>('versions')
             .aggregate<VersionDoc>([
-                { $match: { endpoint_name: name } },
+                { $match: { datafeed_id: endpoint.datafeed_id } },
                 { $sort: { created_at: -1 } },
                 { $skip: skip },
                 { $limit: PAGE_SIZE },
@@ -74,10 +82,8 @@ export default async function EndpointDetailPage({
                 },
             ])
             .toArray(),
-        db.collection<VersionDoc>('versions').countDocuments({ endpoint_name: name }),
+        db.collection<VersionDoc>('versions').countDocuments({ datafeed_id: endpoint.datafeed_id }),
     ]);
-
-    if (!endpoint) notFound();
 
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
     const latestVersion =
@@ -111,10 +117,10 @@ export default async function EndpointDetailPage({
                         )}
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                        {endpoint.id_field ? (
+                        {idField ? (
                             <span className="flex items-center gap-1">
                                 <Key className="h-3.5 w-3.5" />
-                                ID Field: {endpoint.id_field}
+                                ID Field: {idField}
                             </span>
                         ) : (
                             <span className="flex items-center gap-1 italic">
@@ -203,7 +209,7 @@ export default async function EndpointDetailPage({
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-3">
-                                                    <a href={`${datafeedBase}/${name}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+                                                    <a href={`${datafeedBase}/${username}/${name}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
                                                         <Eye className="h-3 w-3" />View Data
                                                     </a>
                                                 </td>
@@ -218,28 +224,24 @@ export default async function EndpointDetailPage({
                                         Page {page} of {totalPages}
                                     </span>
                                     <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            asChild
-                                            disabled={page <= 1}
+                                        <Link
+                                            href={`/endpoints/${name}?page=${page - 1}`}
+                                            aria-disabled={page <= 1}
+                                            tabIndex={page <= 1 ? -1 : 0}
+                                            className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-accent'}`}
                                         >
-                                            <Link href={`/endpoints/${name}?page=${page - 1}`} aria-disabled={page <= 1}>
                                                 <ChevronLeft className="h-4 w-4" />
                                                 Previous
-                                            </Link>
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            asChild
-                                            disabled={page >= totalPages}
+                                        </Link>
+                                        <Link
+                                            href={`/endpoints/${name}?page=${page + 1}`}
+                                            aria-disabled={page >= totalPages}
+                                            tabIndex={page >= totalPages ? -1 : 0}
+                                            className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium ${page >= totalPages ? 'pointer-events-none opacity-50' : 'hover:bg-accent'}`}
                                         >
-                                            <Link href={`/endpoints/${name}?page=${page + 1}`} aria-disabled={page >= totalPages}>
                                                 Next
                                                 <ChevronRightIcon className="h-4 w-4" />
-                                            </Link>
-                                        </Button>
+                                        </Link>
                                     </div>
                                 </div>
                             )}

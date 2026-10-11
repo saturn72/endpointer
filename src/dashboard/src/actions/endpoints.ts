@@ -5,6 +5,15 @@ import { randomUUID, createHash } from 'crypto';
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { clientPromise, dbName } from '@/lib/mongodb';
+import { ObjectId, type Db } from 'mongodb';
+import { requireUser, requireUserId } from '@/lib/session';
+import {
+    insertDatafeed,
+    createEndpointForDatafeed,
+    findOwnedDatafeed,
+    type DatafeedDoc,
+    type EndpointDoc,
+} from '@/lib/datafeeds';
 
 // Wire in all format handlers — this import triggers the registry side-effects.
 import './formats/registry';
@@ -54,6 +63,7 @@ export type GetUploadUrlResult =
 // ─── createEndpoint ───────────────────────────────────────────────────────────
 
 export async function createEndpoint(formData: FormData) {
+    const { id: ownerId, username } = await requireUser();
     const name = ((formData.get('name') as string) ?? '').trim();
     const idFieldRaw = ((formData.get('id_field') as string) ?? '').trim();
     const id_field = idFieldRaw || null;
@@ -92,11 +102,14 @@ export async function createEndpoint(formData: FormData) {
     try {
         const client = await clientPromise;
         const db = client.db(dbName);
-        await db.collection('endpoints').insertOne({
-            name,
-            id_field,
-            created_at: new Date(),
-        });
+        // One-step form: every endpoint gets its own static-file datafeed of the same name.
+        const datafeedId = await insertDatafeed(db, { ownerId, name, idField: id_field });
+        try {
+            await createEndpointForDatafeed(db, { ownerId, ownerUsername: username, datafeedId, name });
+        } catch (err) {
+            await db.collection('datafeeds').deleteOne({ _id: new ObjectId(datafeedId) });
+            throw err;
+        }
     } catch (err: unknown) {
         if ((err as { code?: number }).code === 11000) {
             // Unique index violation — two requests raced with the same name.
@@ -114,15 +127,70 @@ export async function createEndpoint(formData: FormData) {
     redirect(`/endpoints/${name}`);
 }
 
+// ─── endpointNameExists ───────────────────────────────────────────────────────
+// Live availability check for the New Endpoint form. Returns null on DB failure
+// so the UI does not block creation; createEndpoint still enforces uniqueness.
+
+export async function endpointNameExists(name: string): Promise<boolean | null> {
+    const ownerId = await requireUserId();
+    if (!SAFE_NAME_PATTERN.test(name) || name.length > MAX_ENDPOINT_NAME_LENGTH) return false;
+    try {
+        const client = await clientPromise;
+        const doc = await client
+            .db(dbName)
+            .collection('endpoints')
+            .findOne({ owner_id: ownerId, name }, { projection: { _id: 1 } });
+        return doc !== null;
+    } catch (err) {
+        console.error('endpointNameExists: database error', err);
+        return null;
+    }
+}
+
 // ─── getUploadUrl ─────────────────────────────────────────────────────────────
 // Step 1 of the two-step upload flow. Validates the filename extension, verifies
 // the endpoint still exists, generates a presigned POST URL scoped to an exact
 // key, and returns it to the client. No file bytes are read here.
 
-export async function getUploadUrl(
-    endpointName: string,
-    filename: string,
-): Promise<GetUploadUrlResult> {
+// How a caller identifies the datafeed receiving the upload (via its endpoint or directly).
+type DatafeedLookup = {
+    find: (db: Db, ownerId: string) => Promise<DatafeedDoc | null>;
+    notFound: string;
+};
+
+export async function getUploadUrl(endpointName: string, filename: string): Promise<GetUploadUrlResult> {
+    return getUploadUrlFor(byEndpoint(endpointName), filename);
+}
+
+export async function getDatafeedUploadUrl(datafeedId: string, filename: string): Promise<GetUploadUrlResult> {
+    return getUploadUrlFor(byDatafeedId(datafeedId), filename);
+}
+
+function byEndpoint(endpointName: string): DatafeedLookup {
+    return {
+        notFound: 'Endpoint not found. It may have been deleted.',
+        find: async (db, ownerId) => {
+            const endpoint = await db
+                .collection<EndpointDoc>('endpoints')
+                .findOne({ owner_id: ownerId, name: endpointName }, { projection: { datafeed_id: 1 } });
+            return endpoint ? findOwnedDatafeed(db, ownerId, endpoint.datafeed_id) : null;
+        },
+    };
+}
+
+function byDatafeedId(datafeedId: string): DatafeedLookup {
+    return {
+        notFound: 'Datafeed not found. It may have been deleted.',
+        find: (db, ownerId) => findOwnedDatafeed(db, ownerId, datafeedId),
+    };
+}
+
+async function getUploadUrlFor(lookup: DatafeedLookup, filename: string): Promise<GetUploadUrlResult> {
+    const ownerId = await requireUserId();
+    // The filename becomes part of the S3 key, so reject anything path-like.
+    if (!filename || filename.length > 255 || /[\/\\\u0000-\u001f]/.test(filename)) {
+        return { status: 'error', message: 'Invalid file name' };
+    }
     // Extension check before any bytes move — quick UX feedback.
     // Accepted extensions are driven by the format handler registry so adding a
     // new handler in formats/registry.ts automatically extends the allowlist here.
@@ -134,16 +202,15 @@ export async function getUploadUrl(
     }
     const format = ext as FileFormat;
 
-    // Verify endpoint exists (endpoint-not-found race guard)
+    // Verify the datafeed exists and belongs to the caller (deletion race guard)
+    let datafeedId: string;
     try {
         const client = await clientPromise;
-        const db = client.db(dbName);
-        const exists = await db
-            .collection('endpoints')
-            .findOne({ name: endpointName }, { projection: { _id: 1 } });
-        if (!exists) {
-            return { status: 'error', message: 'Endpoint not found. It may have been deleted.' };
+        const datafeed = await lookup.find(client.db(dbName), ownerId);
+        if (!datafeed) {
+            return { status: 'error', message: lookup.notFound };
         }
+        datafeedId = datafeed._id.toHexString();
     } catch (err) {
         console.error('getUploadUrl: database error', err);
         return {
@@ -152,8 +219,8 @@ export async function getUploadUrl(
         };
     }
 
-    // Generate object key using the same format as the previous upload flow
-    const key = `${endpointName}/${randomUUID()}/${filename}`;
+    // Key layout {datafeed_id}/{upload_uuid}/{filename} is parsed by conversion-service.
+    const key = `${datafeedId}/${randomUUID()}/${filename}`;
 
     try {
         const { url, fields } = await createPresignedPost(s3Client, {
@@ -188,12 +255,24 @@ export async function finalizeUpload(
     key: string,
     format: FileFormat,
 ): Promise<UploadResult> {
-    // Re-verify endpoint (guards against deletion between getUploadUrl and here)
-    let endpointDoc: { id_field?: unknown; last_upload_checksum?: string | null } | null = null;
+    return finalizeUploadFor(byEndpoint(endpointName), key, format);
+}
+
+export async function finalizeDatafeedUpload(
+    datafeedId: string,
+    key: string,
+    format: FileFormat,
+): Promise<UploadResult> {
+    return finalizeUploadFor(byDatafeedId(datafeedId), key, format);
+}
+
+async function finalizeUploadFor(lookup: DatafeedLookup, key: string, format: FileFormat): Promise<UploadResult> {
+    const ownerId = await requireUserId();
+    // Re-verify the datafeed (guards against deletion between getUploadUrl and here)
+    let datafeedDoc: DatafeedDoc | null = null;
     try {
         const client = await clientPromise;
-        const db = client.db(dbName);
-        endpointDoc = await db.collection<{ id_field?: unknown; last_upload_checksum?: string | null }>('endpoints').findOne({ name: endpointName });
+        datafeedDoc = await lookup.find(client.db(dbName), ownerId);
     } catch (err) {
         console.error('finalizeUpload: database error', err);
         return {
@@ -202,11 +281,16 @@ export async function finalizeUpload(
         };
     }
 
-    if (!endpointDoc) {
-        return { status: 'error', message: 'Endpoint not found. It may have been deleted.' };
+    if (!datafeedDoc) {
+        return { status: 'error', message: lookup.notFound };
     }
-    const id_field = (endpointDoc.id_field as string | null) ?? null;
-    const storedChecksum = endpointDoc.last_upload_checksum ?? null;
+    // The key comes from the client: it must belong to this user's datafeed, or the
+    // server would read and delete arbitrary objects in the raw bucket.
+    if (!key.startsWith(`${datafeedDoc._id.toHexString()}/`)) {
+        return { status: 'error', message: 'Invalid upload reference' };
+    }
+    const id_field = datafeedDoc.adapter_config.id_field ?? null;
+    const storedChecksum = datafeedDoc.last_upload_checksum ?? null;
 
     // Retrieve the uploaded object from S3
     let body: AsyncIterable<Uint8Array> | undefined;
@@ -325,9 +409,9 @@ export async function finalizeUpload(
     try {
         const client = await clientPromise;
         const db = client.db(dbName);
-        await db.collection('endpoints').updateOne(
-            { name: endpointName },
-            { $set: { last_upload_checksum: newChecksum } },
+        await db.collection('datafeeds').updateOne(
+            { _id: datafeedDoc._id },
+            { $set: { last_upload_checksum: newChecksum, updated_at: new Date() } },
         );
     } catch (err) {
         console.error('finalizeUpload: failed to persist checksum', err);
@@ -346,11 +430,16 @@ export async function setVersionPublished(
     minor: number,
     published: boolean,
 ): Promise<void> {
+    const ownerId = await requireUserId();
     try {
         const client = await clientPromise;
         const db = client.db(dbName);
+        const owned = await db
+            .collection<EndpointDoc>('endpoints')
+            .findOne({ owner_id: ownerId, name: endpointName }, { projection: { datafeed_id: 1 } });
+        if (!owned) throw new Error('Endpoint not found');
         await db.collection('versions').updateOne(
-            { endpoint_name: endpointName, major, minor },
+            { datafeed_id: owned.datafeed_id, major, minor },
             { $set: { published } },
         );
     } catch (err) {

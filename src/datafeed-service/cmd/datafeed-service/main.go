@@ -2,9 +2,10 @@
 //
 // Endpoints:
 //
-//	GET /{endpoint_name}?page=&limit=  — paginated list of records (latest version)
-//	GET /{endpoint_name}/{id}          — single record by id_field value
-//	GET /healthz                       — liveness / MongoDB connectivity check
+//	GET /{user}/{endpoint}?offset=&limit=           — paginated records (latest or pinned version)
+//	GET /{user}/{endpoint}/version/{major}.{minor}  — paginated records of a specific version
+//	GET /{user}/{endpoint}/{id}                     — single record by id_field value
+//	GET /healthz                                    — liveness / MongoDB connectivity check
 package main
 
 import (
@@ -38,17 +39,16 @@ func main() {
 
 	h := &httpapi.Handler{
 		Endpoints: db.Collection("endpoints"),
+		Datafeeds: db.Collection("datafeeds"),
 		Versions:  db.Collection("versions"),
 		DB:        db,
 	}
 
-	// Go 1.22+ ServeMux: literal patterns take precedence over wildcard patterns,
-	// so GET /healthz is served by Healthz even though GET /{endpoint_name} also
-	// matches a single-segment path.
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", h.Healthz)
-	mux.HandleFunc("GET /{endpoint_name}", h.GetAll)
-	mux.HandleFunc("GET /{endpoint_name}/{id}", h.GetByID)
+	mux.HandleFunc("GET /{user_name}/{endpoint_name}", h.GetAll)
+	mux.HandleFunc("GET /{user_name}/{endpoint_name}/version/{version}", h.GetAll)
+	mux.HandleFunc("GET /{user_name}/{endpoint_name}/{id}", h.GetByID)
 
 	// Wrap with recovery (innermost) then logging (outermost).
 	var handler http.Handler = mux

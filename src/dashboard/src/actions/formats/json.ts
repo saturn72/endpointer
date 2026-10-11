@@ -34,7 +34,7 @@
 import { Readable } from 'node:stream';
 import { chain } from 'stream-chain';
 import { parser } from 'stream-json';
-import { streamArray } from 'stream-json/streamers/stream-array';
+import { streamArray } from 'stream-json/streamers/stream-array.js';
 import type { FileFormatHandler, HeaderParseResult } from './index';
 
 export const jsonHandler: FileFormatHandler = {

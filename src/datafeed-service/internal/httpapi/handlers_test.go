@@ -78,3 +78,18 @@ func TestFindByID(t *testing.T) {
 		})
 	}
 }
+
+func TestParseVersion(t *testing.T) {
+	valid := map[string][2]int{"1.0": {1, 0}, "0.1": {0, 1}, "12.345": {12, 345}, "01.02": {1, 2}}
+	for in, want := range valid {
+		maj, min, ok := httpapi.ParseVersion(in)
+		if !ok || maj != want[0] || min != want[1] {
+			t.Errorf("ParseVersion(%q) = %d,%d,%v; want %d,%d,true", in, maj, min, ok, want[0], want[1])
+		}
+	}
+	for _, in := range []string{"", "1", "1.", ".1", "1.0.0", "v1.0", "-1.0", "1.-0", "a.b", " 1.0", "1.0 ", "99999999999999999999.0"} {
+		if _, _, ok := httpapi.ParseVersion(in); ok {
+			t.Errorf("ParseVersion(%q) ok = true; want false", in)
+		}
+	}
+}

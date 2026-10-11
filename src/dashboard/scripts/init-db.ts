@@ -16,22 +16,53 @@ async function main() {
         await client.connect();
         const db = client.db(dbName);
 
+        try {
+            await db.collection('endpoints').dropIndex('endpoints_name_unique');
+        } catch {
+            // index absent
+        }
         await db
             .collection('endpoints')
-            .createIndex({ name: 1 }, { unique: true, name: 'endpoints_name_unique' });
-        console.log('✓ Unique index created on endpoints.name');
+            .createIndex(
+                { owner_id: 1, name: 1 },
+                { unique: true, name: 'endpoints_owner_name_unique' },
+            );
+        console.log('✓ Unique index created on endpoints (owner_id, name)');
 
+        // Public URLs resolve <user_name>/<endpoint_name>. Partial: endpoints created
+        // before usernames were stored get theirs on the owner's first visit.
+        await db.collection('endpoints').createIndex(
+            { owner_username: 1, name: 1 },
+            {
+                unique: true,
+                name: 'endpoints_username_name_unique',
+                partialFilterExpression: { owner_username: { $type: 'string' } },
+            },
+        );
+        await db
+            .collection('datafeeds')
+            .createIndex({ owner_id: 1, name: 1 }, { unique: true, name: 'datafeeds_owner_name_unique' });
+        console.log('✓ Indexes created on endpoints (owner_username, name) and datafeeds (owner_id, name)');
+
+        // Legacy endpoint_name indexes; run `npm run db:migrate` first on existing data.
+        for (const legacy of ['versions_endpoint_version', 'versions_unique_version']) {
+            try {
+                await db.collection('versions').dropIndex(legacy);
+            } catch {
+                // index absent
+            }
+        }
         await db
             .collection('versions')
             .createIndex(
-                { endpoint_name: 1, major: -1, minor: -1 },
-                { name: 'versions_endpoint_version' },
+                { datafeed_id: 1, major: -1, minor: -1 },
+                { name: 'versions_datafeed_version' },
             );
         await db
             .collection('versions')
             .createIndex(
-                { endpoint_name: 1, major: 1, minor: 1 },
-                { unique: true, name: 'versions_unique_version' },
+                { datafeed_id: 1, major: 1, minor: 1 },
+                { unique: true, name: 'versions_datafeed_unique_version' },
             );
         console.log('✓ Indexes created on versions collection');
     } finally {

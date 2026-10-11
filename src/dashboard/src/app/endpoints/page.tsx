@@ -6,15 +6,18 @@ import { Database, FolderOpen } from 'lucide-react';
 import Link from 'next/link';
 import { NewEndpointSheet } from '@/components/new-endpoint-sheet';
 import { ErrorBanner } from '@/components/error-banner';
+import { ObjectId } from 'mongodb';
+import { requireUser } from '@/lib/session';
+import { backfillOwnerUsername, type DatafeedDoc } from '@/lib/datafeeds';
 
 interface EndpointDoc extends Document {
     name: string;
-    id_field: string | null;
+    datafeed_id: string;
     created_at: Date;
 }
 
 interface VersionDoc extends Document {
-    endpoint_name: string;
+    datafeed_id: string;
     major: number;
     minor: number;
 }
@@ -27,35 +30,46 @@ export default async function EndpointsPage({
     searchParams: SearchParams;
 }) {
     const { error, infraError } = await searchParams;
+    const { id: ownerId, username } = await requireUser();
 
     let endpoints: WithId<EndpointDoc>[] = [];
     let versionMap: Record<string, string> = {};
+    let idFieldMap: Record<string, string | null> = {};
     let dbError = false;
 
     try {
         const client = await clientPromise;
         const db = client.db(dbName);
 
+        await backfillOwnerUsername(db, ownerId, username);
         endpoints = await db
             .collection<EndpointDoc>('endpoints')
-            .find({})
+            .find({ owner_id: ownerId })
             .sort({ created_at: -1 })
             .toArray();
 
         const latestVersions = await db
             .collection<VersionDoc>('versions')
             .aggregate<{ _id: string; major: number; minor: number }>([
-                { $match: { endpoint_name: { $in: endpoints.map((e) => e.name) } } },
+                { $match: { datafeed_id: { $in: endpoints.map((e) => e.datafeed_id) } } },
                 { $sort: { major: -1, minor: -1 } },
                 {
                     $group: {
-                        _id: '$endpoint_name',
+                        _id: '$datafeed_id',
                         major: { $first: '$major' },
                         minor: { $first: '$minor' },
                     },
                 },
             ])
             .toArray();
+
+        const datafeeds = await db
+            .collection<DatafeedDoc>('datafeeds')
+            .find({
+                _id: { $in: endpoints.filter((e) => ObjectId.isValid(e.datafeed_id)).map((e) => new ObjectId(e.datafeed_id)) },
+            })
+            .toArray();
+        idFieldMap = Object.fromEntries(datafeeds.map((d) => [d._id.toHexString(), d.adapter_config.id_field]));
 
         versionMap = Object.fromEntries(
             latestVersions.map((v) => [v._id, `v${v.major}.${v.minor}`]),
@@ -100,7 +114,8 @@ export default async function EndpointsPage({
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {endpoints.map((ep: WithId<EndpointDoc>) => {
-                        const version = versionMap[ep.name];
+                        const version = versionMap[ep.datafeed_id];
+                        const idField = idFieldMap[ep.datafeed_id];
                         const isActive = Boolean(version);
                         return (
                             <Link
@@ -130,9 +145,9 @@ export default async function EndpointsPage({
                                                 {ep.name}
                                             </p>
                                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                                {ep.id_field ? (
+                                                {idField ? (
                                                     <span className="text-xs text-muted-foreground">
-                                                        ID: {ep.id_field}
+                                                        ID: {idField}
                                                     </span>
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground italic">

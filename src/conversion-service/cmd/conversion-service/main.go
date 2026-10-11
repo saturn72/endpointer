@@ -108,13 +108,13 @@ func main() {
 // present on the source object, is copied forward as required by the warning
 // propagation contract (see .docs/decisions/001-versions-schema-and-warning-propagation.md).
 func processEvent(ctx context.Context, s3c *s3.Client, rawBucket, convertedBucket, key string) error {
-	// Parse endpoint_name and upload_uuid from the S3 key.
-	// Format established in step_0_1: {endpoint_name}/{upload_uuid}/{filename}
+	// Parse datafeed_id and upload_uuid from the S3 key.
+	// Format: {datafeed_id}/{upload_uuid}/{filename}
 	parts := strings.SplitN(key, "/", 3)
 	if len(parts) < 3 {
-		return fmt.Errorf("unexpected key format (want endpoint/uuid/file, got %q)", key)
+		return fmt.Errorf("unexpected key format (want datafeed/uuid/file, got %q)", key)
 	}
-	endpointName := parts[0]
+	datafeedID := parts[0]
 	uploadUUID := parts[1]
 
 	// Fetch the raw CSV including its user metadata.
@@ -147,8 +147,8 @@ func processEvent(ctx context.Context, s3c *s3.Client, rawBucket, convertedBucke
 		return fmt.Errorf("converting %s: %w", key, err)
 	}
 
-	// Build the destination key: {endpoint_name}/{upload_uuid}/data.json
-	destKey := endpointName + "/" + uploadUUID + "/data.json"
+	// Build the destination key: {datafeed_id}/{upload_uuid}/data.json
+	destKey := datafeedID + "/" + uploadUUID + "/data.json"
 
 	// Propagate metadata to the converted object.
 	// Always include "filename" (the original upload filename from the raw key)

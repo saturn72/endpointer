@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -24,6 +25,7 @@ const (
 // Handler groups the MongoDB collections needed by the HTTP handlers.
 type Handler struct {
 	Endpoints *mongo.Collection
+	Datafeeds *mongo.Collection
 	Versions  *mongo.Collection
 	DB        *mongo.Database // for healthz ping
 }
@@ -32,8 +34,21 @@ type Handler struct {
 
 // endpointDoc holds the fields we read from the `endpoints` collection.
 type endpointDoc struct {
-	Name    string  `bson:"name"`
-	IDField *string `bson:"id_field"` // nil when not configured
+	OwnerUsername string `bson:"owner_username"`
+	Name          string `bson:"name"`
+	DatafeedID    string `bson:"datafeed_id"` // hex of datafeeds._id
+	VersionPolicy *struct {
+		Mode  string `bson:"mode"` // "latest" | "pinned"
+		Major int    `bson:"major"`
+		Minor int    `bson:"minor"`
+	} `bson:"version_policy"`
+}
+
+// datafeedDoc holds the fields we read from the `datafeeds` collection.
+type datafeedDoc struct {
+	AdapterConfig struct {
+		IDField *string `bson:"id_field"` // nil when not configured
+	} `bson:"adapter_config"`
 }
 
 // latestVersionDoc holds the fields we read from the `versions` collection.
@@ -81,31 +96,79 @@ func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"ok"}`)) //nolint:errcheck
 }
 
-// GetAll handles GET /{endpoint_name}?offset=&limit=
-func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
-	endpointName := r.PathValue("endpoint_name")
+// resolved is the result of walking user -> endpoint -> datafeed -> version.
+type resolved struct {
+	datafeed datafeedDoc
+	version  *latestVersionDoc
+}
 
-	ep, err := h.lookupEndpoint(r.Context(), endpointName)
+// resolve writes the error response and returns ok=false when any hop fails.
+// Route: /{user_name}/{endpoint_name}[/version/{version}]. An explicit version
+// in the URL wins over the endpoint's version policy.
+func (h *Handler) resolve(w http.ResponseWriter, r *http.Request) (res resolved, ok bool) {
+	user := r.PathValue("user_name")
+	name := r.PathValue("endpoint_name")
+
+	var wantMajor, wantMinor *int
+	if v := r.PathValue("version"); v != "" {
+		major, minor, valid := ParseVersion(v)
+		if !valid {
+			writeError(w, http.StatusNotFound, "version not found")
+			return res, false
+		}
+		wantMajor, wantMinor = &major, &minor
+	}
+
+	ep, err := h.lookupEndpoint(r.Context(), user, name)
 	if err != nil {
-		slog.Error("looking up endpoint", "name", endpointName, "error", err)
+		slog.Error("looking up endpoint", "user", user, "name", name, "error", err)
 		writeError(w, http.StatusInternalServerError, "internal server error")
-		return
+		return res, false
 	}
 	if ep == nil {
 		writeError(w, http.StatusNotFound, "endpoint not found")
-		return
+		return res, false
 	}
 
-	ver, err := h.lookupLatestVersion(r.Context(), endpointName)
+	if wantMajor == nil && ep.VersionPolicy != nil && ep.VersionPolicy.Mode == "pinned" {
+		wantMajor, wantMinor = &ep.VersionPolicy.Major, &ep.VersionPolicy.Minor
+	}
+
+	df, err := h.lookupDatafeed(r.Context(), ep.DatafeedID)
 	if err != nil {
-		slog.Error("looking up latest version", "endpoint", endpointName, "error", err)
+		slog.Error("looking up datafeed", "datafeed", ep.DatafeedID, "error", err)
 		writeError(w, http.StatusInternalServerError, "internal server error")
-		return
+		return res, false
+	}
+	if df == nil {
+		writeError(w, http.StatusNotFound, "no data available for this endpoint yet")
+		return res, false
+	}
+
+	ver, err := h.lookupVersion(r.Context(), ep.DatafeedID, wantMajor, wantMinor)
+	if err != nil {
+		slog.Error("looking up version", "datafeed", ep.DatafeedID, "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return res, false
 	}
 	if ver == nil {
-		writeError(w, http.StatusNotFound, "no data available for this endpoint yet")
+		if wantMajor != nil {
+			writeError(w, http.StatusNotFound, "version not found")
+		} else {
+			writeError(w, http.StatusNotFound, "no data available for this endpoint yet")
+		}
+		return res, false
+	}
+	return resolved{datafeed: *df, version: ver}, true
+}
+
+// GetAll handles GET /{user_name}/{endpoint_name}[/version/{version}]?offset=&limit=
+func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
+	res, ok := h.resolve(w, r)
+	if !ok {
 		return
 	}
+	ver := res.version
 
 	offset, limit, ok := parsePagination(r, w)
 	if !ok {
@@ -142,40 +205,20 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetByID handles GET /{endpoint_name}/{id}
+// GetByID handles GET /{user_name}/{endpoint_name}/{id}
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
-	endpointName := r.PathValue("endpoint_name")
-	id := r.PathValue("id")
-
-	ep, err := h.lookupEndpoint(r.Context(), endpointName)
-	if err != nil {
-		slog.Error("looking up endpoint", "name", endpointName, "error", err)
-		writeError(w, http.StatusInternalServerError, "internal server error")
+	res, ok := h.resolve(w, r)
+	if !ok {
 		return
 	}
-	if ep == nil {
-		writeError(w, http.StatusNotFound, "endpoint not found")
-		return
-	}
-
-	if ep.IDField == nil || *ep.IDField == "" {
+	idField := res.datafeed.AdapterConfig.IDField
+	if idField == nil || *idField == "" {
 		writeError(w, http.StatusBadRequest, "this endpoint has no id_field configured")
 		return
 	}
 
-	ver, err := h.lookupLatestVersion(r.Context(), endpointName)
-	if err != nil {
-		slog.Error("looking up latest version", "endpoint", endpointName, "error", err)
-		writeError(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-	if ver == nil {
-		writeError(w, http.StatusNotFound, "no data available for this endpoint yet")
-		return
-	}
-
-	content := bsonArrayToInterfaces(ver.Content)
-	record, found := FindByID(content, *ep.IDField, id)
+	content := bsonArrayToInterfaces(res.version.Content)
+	record, found := FindByID(content, *idField, r.PathValue("id"))
 	if !found {
 		writeError(w, http.StatusNotFound, "record not found")
 		return
@@ -223,29 +266,72 @@ func FindByID(content []interface{}, idField, id string) (interface{}, bool) {
 
 // ─── Private helpers ─────────────────────────────────────────────────────────
 
-func (h *Handler) lookupEndpoint(ctx context.Context, name string) (*endpointDoc, error) {
+func (h *Handler) lookupEndpoint(ctx context.Context, user, name string) (*endpointDoc, error) {
 	var ep endpointDoc
-	err := h.Endpoints.FindOne(ctx, bson.M{"name": name}).Decode(&ep)
+	err := h.Endpoints.FindOne(ctx, bson.M{"owner_username": user, "name": name}).Decode(&ep)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("findOne endpoints %q: %w", name, err)
+		return nil, fmt.Errorf("findOne endpoints %q/%q: %w", user, name, err)
 	}
 	return &ep, nil
 }
 
-func (h *Handler) lookupLatestVersion(ctx context.Context, endpointName string) (*latestVersionDoc, error) {
-	var ver latestVersionDoc
-	opts := options.FindOne().SetSort(bson.D{{Key: "major", Value: -1}, {Key: "minor", Value: -1}})
-	err := h.Versions.FindOne(ctx, bson.M{"endpoint_name": endpointName}, opts).Decode(&ver)
+func (h *Handler) lookupDatafeed(ctx context.Context, id string) (*datafeedDoc, error) {
+	oid, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, nil // dangling or malformed reference: treat as no data
+	}
+	var df datafeedDoc
+	err = h.Datafeeds.FindOne(ctx, bson.M{"_id": oid}).Decode(&df)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("findOne versions %q: %w", endpointName, err)
+		return nil, fmt.Errorf("findOne datafeeds %q: %w", id, err)
+	}
+	return &df, nil
+}
+
+// lookupVersion returns the exact version when major/minor are set, else the latest.
+func (h *Handler) lookupVersion(ctx context.Context, datafeedID string, major, minor *int) (*latestVersionDoc, error) {
+	filter := bson.M{"datafeed_id": datafeedID}
+	opts := options.FindOne().SetSort(bson.D{{Key: "major", Value: -1}, {Key: "minor", Value: -1}})
+	if major != nil && minor != nil {
+		filter["major"] = *major
+		filter["minor"] = *minor
+	}
+	var ver latestVersionDoc
+	err := h.Versions.FindOne(ctx, filter, opts).Decode(&ver)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("findOne versions %q: %w", datafeedID, err)
 	}
 	return &ver, nil
+}
+
+var versionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+$`)
+
+// ParseVersion parses "<major>.<minor>" (digits only, e.g. "1.3").
+func ParseVersion(s string) (major, minor int, ok bool) {
+	if !versionPattern.MatchString(s) {
+		return 0, 0, false
+	}
+	var err1, err2 error
+	for i, c := range s {
+		if c == '.' {
+			major, err1 = strconv.Atoi(s[:i])
+			minor, err2 = strconv.Atoi(s[i+1:])
+			break
+		}
+	}
+	if err1 != nil || err2 != nil {
+		return 0, 0, false
+	}
+	return major, minor, true
 }
 
 // parsePagination reads offset and limit from the query string.

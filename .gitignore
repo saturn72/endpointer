@@ -11,3 +11,4 @@ src/dashboard/.swc/
 
 # IDE
 .vscode/settings.json
+.deploy/casdoor/init_data.json

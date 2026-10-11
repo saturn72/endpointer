@@ -7,6 +7,9 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { auth } from '@/auth';
+import { userInitials } from '@/lib/user';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
@@ -15,7 +18,10 @@ export const metadata: Metadata = {
   description: 'Endpoint feed management',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const session = await auth();
+  const user = session?.user;
+  const display = user?.displayName || user?.name || user?.username || user?.email || '';
   return (
     <html lang="en" className={inter.variable}>
       <body className="font-(--font-inter)">
@@ -32,9 +38,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
                     <Bell className="h-4 w-4" />
                   </Button>
-                  <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold ml-1 shrink-0">
-                    A
-                  </div>
+                  <Link
+                    href="/profile"
+                    title={user?.email ?? 'Profile'}
+                    className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold ml-1 shrink-0"
+                  >
+                    {display ? userInitials(display) : '?'}
+                  </Link>
                 </div>
               </header>
               <div className="flex-1 p-6">{children}</div>

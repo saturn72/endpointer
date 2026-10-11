@@ -2,17 +2,26 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getUploadUrl, finalizeUpload, type UploadResult, type FileFormat } from '@/actions/endpoints';
+import {
+    getUploadUrl,
+    finalizeUpload,
+    getDatafeedUploadUrl,
+    finalizeDatafeedUpload,
+    type UploadResult,
+    type FileFormat,
+} from '@/actions/endpoints';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2, Loader2, ServerCrash, Upload } from 'lucide-react';
 
+// Exactly one of the two targets is set: an endpoint (via its datafeed) or a datafeed.
 interface AutoUploadFormProps {
-    endpointName: string;
+    endpointName?: string;
+    datafeedId?: string;
 }
 
-export function AutoUploadForm({ endpointName }: AutoUploadFormProps) {
+export function AutoUploadForm({ endpointName, datafeedId }: AutoUploadFormProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const [result, setResult] = useState<UploadResult | null>(null);
@@ -34,7 +43,9 @@ export function AutoUploadForm({ endpointName }: AutoUploadFormProps) {
         clearRefreshTimers();
 
         // ── Step 1: get presigned POST URL from the server ────────────────────
-        const urlResult = await getUploadUrl(endpointName, file.name);
+        const urlResult = datafeedId
+            ? await getDatafeedUploadUrl(datafeedId, file.name)
+            : await getUploadUrl(endpointName!, file.name);
         if (urlResult.status !== 'success') {
             setResult(urlResult);
             setUploading(false);
@@ -70,7 +81,9 @@ export function AutoUploadForm({ endpointName }: AutoUploadFormProps) {
         }
 
         // ── Step 3: finalize — validate the uploaded file server-side ─────────
-        const finalResult = await finalizeUpload(endpointName, key, format as FileFormat);
+        const finalResult = datafeedId
+            ? await finalizeDatafeedUpload(datafeedId, key, format as FileFormat)
+            : await finalizeUpload(endpointName!, key, format as FileFormat);
         setResult(finalResult);
         setUploading(false);
 

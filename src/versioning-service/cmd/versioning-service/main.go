@@ -105,7 +105,8 @@ func main() {
 
 // versionDoc is the MongoDB document stored in the versions collection.
 type versionDoc struct {
-	EndpointName    string      `bson:"endpoint_name"`
+	DatafeedID      string      `bson:"datafeed_id"`
+	UploadID        string      `bson:"upload_id"` // uuid segment of the raw key; lets sweepers tell processed uploads apart
 	Major           int         `bson:"major"`
 	Minor           int         `bson:"minor"`
 	Content         interface{} `bson:"content"`
@@ -119,13 +120,14 @@ type versionDoc struct {
 // processEvent fetches the JSON object from converted-feeds, assigns the next
 // version, stores a version document in MongoDB, and deletes the S3 object.
 func processEvent(ctx context.Context, s3c *s3.Client, col *mongo.Collection, convertedBucket, key string) error {
-	// Parse endpoint_name and upload_uuid from the converted-feeds key.
-	// Format: {endpoint_name}/{upload_uuid}/data.json
+	// Parse datafeed_id and upload_id from the converted-feeds key.
+	// Format: {datafeed_id}/{upload_uuid}/data.json
 	parts := strings.SplitN(key, "/", 3)
 	if len(parts) < 3 {
-		return fmt.Errorf("unexpected key format (want endpoint/uuid/file, got %q)", key)
+		return fmt.Errorf("unexpected key format (want datafeed/uuid/file, got %q)", key)
 	}
-	endpointName := parts[0]
+	datafeedID := parts[0]
+	uploadID := parts[1]
 
 	// Fetch the converted JSON including its user metadata.
 	getResp, err := s3c.GetObject(ctx, &s3.GetObjectInput{
@@ -163,15 +165,16 @@ func processEvent(ctx context.Context, s3c *s3.Client, col *mongo.Collection, co
 	// Read the original upload filename propagated by the conversion-service.
 	filename := getResp.Metadata["filename"]
 
-	// Compute the next version for this endpoint by querying the current max.
-	major, minor, err := nextVersionForEndpoint(ctx, col, endpointName)
+	// Compute the next version for this datafeed by querying the current max.
+	major, minor, err := nextVersionForDatafeed(ctx, col, datafeedID)
 	if err != nil {
-		return fmt.Errorf("computing next version for %s: %w", endpointName, err)
+		return fmt.Errorf("computing next version for %s: %w", datafeedID, err)
 	}
 
 	// Insert the version document.
 	doc := versionDoc{
-		EndpointName:    endpointName,
+		DatafeedID:      datafeedID,
+		UploadID:        uploadID,
 		Major:           major,
 		Minor:           minor,
 		Content:         content,
@@ -185,13 +188,13 @@ func processEvent(ctx context.Context, s3c *s3.Client, col *mongo.Collection, co
 			// Duplicate major.minor — likely a re-delivered event. Log and skip.
 			// Known gap: no dedup/idempotency mechanism beyond this log-and-skip.
 			slog.Error("duplicate version; skipping",
-				"endpoint", endpointName, "major", major, "minor", minor)
+				"datafeed", datafeedID, "major", major, "minor", minor)
 			return nil
 		}
-		return fmt.Errorf("inserting version %s %d.%d: %w", endpointName, major, minor, err)
+		return fmt.Errorf("inserting version %s %d.%d: %w", datafeedID, major, minor, err)
 	}
 	slog.Info("version stored",
-		"endpoint", endpointName, "major", major, "minor", minor, "key", key)
+		"datafeed", datafeedID, "major", major, "minor", minor, "key", key)
 
 	// Delete the processed object from converted-feeds.
 	// Known gap: if the delete fails after a successful insert, the object is
@@ -207,15 +210,15 @@ func processEvent(ctx context.Context, s3c *s3.Client, col *mongo.Collection, co
 	return nil
 }
 
-// nextVersionForEndpoint queries MongoDB for the current max (major, minor)
-// for the endpoint and delegates to versioning.NextVersion.
-func nextVersionForEndpoint(ctx context.Context, col *mongo.Collection, endpointName string) (major, minor int, err error) {
+// nextVersionForDatafeed queries MongoDB for the current max (major, minor)
+// for the datafeed and delegates to versioning.NextVersion.
+func nextVersionForDatafeed(ctx context.Context, col *mongo.Collection, datafeedID string) (major, minor int, err error) {
 	var result struct {
 		Major int `bson:"major"`
 		Minor int `bson:"minor"`
 	}
 	opts := options.FindOne().SetSort(bson.D{{Key: "major", Value: -1}, {Key: "minor", Value: -1}})
-	queryErr := col.FindOne(ctx, bson.M{"endpoint_name": endpointName}, opts).Decode(&result)
+	queryErr := col.FindOne(ctx, bson.M{"datafeed_id": datafeedID}, opts).Decode(&result)
 
 	switch {
 	case queryErr == nil:
@@ -223,28 +226,28 @@ func nextVersionForEndpoint(ctx context.Context, col *mongo.Collection, endpoint
 	case errors.Is(queryErr, mongo.ErrNoDocuments):
 		major, minor = versioning.NextVersion(0, 0, false)
 	default:
-		return 0, 0, fmt.Errorf("querying max version for %s: %w", endpointName, queryErr)
+		return 0, 0, fmt.Errorf("querying max version for %s: %w", datafeedID, queryErr)
 	}
 	return major, minor, nil
 }
 
-// ensureIndex creates the unique compound index on (endpoint_name, major, minor)
-// if it does not already exist. This service owns the versions collection and
-// is responsible for its schema — documented in the service README.
+// ensureIndex creates the unique compound index on (datafeed_id, major, minor)
+// and drops the legacy endpoint_name index, which would otherwise collide on
+// documents that no longer carry endpoint_name.
 func ensureIndex(ctx context.Context, col *mongo.Collection) error {
+	// Absent index is fine.
+	_ = col.Indexes().DropOne(ctx, "versions_unique_version")
+
 	indexModel := mongo.IndexModel{
 		Keys: bson.D{
-			{Key: "endpoint_name", Value: 1},
+			{Key: "datafeed_id", Value: 1},
 			{Key: "major", Value: 1},
 			{Key: "minor", Value: 1},
 		},
-		Options: options.Index().SetUnique(true).SetName("versions_unique_version"),
+		Options: options.Index().SetUnique(true).SetName("versions_datafeed_unique_version"),
 	}
 	_, err := col.Indexes().CreateOne(ctx, indexModel)
 	if err != nil {
-		// MongoDB returns a "already exists" error if the identical index is
-		// present. Treat any error here as fatal — either it worked or something
-		// is genuinely wrong.
 		return fmt.Errorf("creating unique version index: %w", err)
 	}
 	return nil

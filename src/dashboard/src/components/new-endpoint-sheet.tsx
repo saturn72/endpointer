@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { createEndpoint } from '@/actions/endpoints';
+import { useEffect, useState } from 'react';
+import { createEndpoint, endpointNameExists } from '@/actions/endpoints';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,35 @@ import {
 
 export function NewEndpointSheet() {
     const [open, setOpen] = useState(false);
+    const [name, setName] = useState('');
+    const [idField, setIdField] = useState('');
+    const [exists, setExists] = useState(false);
+    const [checking, setChecking] = useState(false);
+
+    const SAFE = /^[a-zA-Z0-9_-]+$/;
+    const nameValid = SAFE.test(name) && name.length <= 100;
+    const idFieldValid = idField === '' || SAFE.test(idField);
+    const canCreate = nameValid && idFieldValid && !exists && !checking;
+
+    useEffect(() => {
+        setExists(false);
+        if (!nameValid) {
+            setChecking(false);
+            return;
+        }
+        setChecking(true);
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            const result = await endpointNameExists(name);
+            if (cancelled) return;
+            setExists(result === true);
+            setChecking(false);
+        }, 300);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [name, nameValid]);
 
     return (
         <>
@@ -42,7 +71,15 @@ export function NewEndpointSheet() {
                                 title="Letters, numbers, dashes, and underscores only"
                                 className="text-sm"
                                 autoFocus
+                                value={name}
+                                onChange={(e) => setName(e.target.value.trim())}
+                                aria-invalid={exists}
                             />
+                            {exists && (
+                                <p className="text-xs text-destructive" role="alert">
+                                    An endpoint with that name already exists
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="sheet-id-field" className="text-sm font-medium">
@@ -57,6 +94,9 @@ export function NewEndpointSheet() {
                                 name="id_field"
                                 placeholder="id"
                                 className="text-sm"
+                                value={idField}
+                                onChange={(e) => setIdField(e.target.value.trim())}
+                                aria-invalid={!idFieldValid}
                             />
                         </div>
                         <div className="flex gap-2 mt-auto">
@@ -69,7 +109,7 @@ export function NewEndpointSheet() {
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" size="sm" className="flex-1">
+                            <Button type="submit" size="sm" className="flex-1" disabled={!canCreate}>
                                 Create
                             </Button>
                         </div>

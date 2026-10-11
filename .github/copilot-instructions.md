@@ -29,7 +29,8 @@ docker compose -f .deploy/docker-compose.yml up -d
 # 2. Install dependencies
 cd src/dashboard && npm install
 
-# 3. Create MongoDB indexes (once)
+# 3. Existing data only: migrate endpoints to datafeeds (idempotent), then create indexes
+npm run db:migrate
 npm run db:init
 
 # 4. Copy and fill in env vars
@@ -113,7 +114,7 @@ go run ./cmd/datafeed-service
 
 # Or run the full stack via docker-compose:
 docker compose -f .deploy/docker-compose.yml up --build
-# datafeed-service is available at http://localhost:8082/{endpoint_name}
+# datafeed-service is available at http://localhost:8082/{user_name}/{endpoint_name}
 ```
 
 Unit tests:
@@ -130,6 +131,24 @@ Integration tests (requires a running MongoDB on MONGODB_URI):
 cd src/datafeed-service
 MONGODB_URI=mongodb://localhost:27017 go test -tags=integration ./internal/httpapi/ -v
 ```
+
+Dashboard unit tests (need MongoDB): `MONGODB_URI=mongodb://localhost:27017 npm run test:unit`.
+Playwright e2e (`npm test`) predates sign-in and cannot log in yet (see backlog).
+
+## Domain model (in progress, step 2)
+
+Datafeed (source, one adapter, versioned) and endpoint (public URL, one
+datafeed in phase 1) are separate objects. Authoritative details are in
+`.docs/decisions/002-datafeed-endpoint-domain-model.md` and the spec in
+`.prompts/step_2/datafeeds-menu.md`; open work is in `.docs/backlog.md`.
+Key rules:
+
+- Public URLs: `<domain>/<user_name>/<endpoint_name>` and
+  `.../version/<major>.<minor>`. The legacy `/{endpoint_name}` route is retired.
+- New service `src/datafeed-manager-service` owns datafeed/endpoint definitions.
+- Browsers upload directly to S3 with short-lived presigned URLs issued by the
+  manager service; follow the "Upload security" rules in ADR 002.
+- Only the `static-file` adapter exists in phase 1.
 
 ## Project philosophy
 
