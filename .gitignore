@@ -4,6 +4,12 @@ src/dashboard/node_modules/
 # Next.js build output
 src/dashboard/.next/
 src/dashboard/.swc/
+src/dashboard/playwright-report/
+src/dashboard/test-results/
+
+# Generated debugger and TypeScript build artifacts
+**/__debug_bin.exe*
+*.tsbuildinfo
 
 # Env files (each component manages its own)
 *.env.local
@@ -11,4 +17,5 @@ src/dashboard/.swc/
 
 # IDE
 .vscode/settings.json
+.vscode/mcp.json
 .deploy/casdoor/init_data.json

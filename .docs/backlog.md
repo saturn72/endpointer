@@ -2,6 +2,11 @@
 
 Status: `[ ]` todo, `[~]` in progress, `[x]` done.
 
+> **Archived snapshot (2026-10-11):** GitHub Issues are now the source of truth
+> for implementation tracking. The unchecked entries below preserve the
+> historical backlog but must not be started directly. Open a new prioritized
+> GitHub issue before implementing any item.
+
 ## Identity (Casdoor)
 
 ### Setup and sign-in

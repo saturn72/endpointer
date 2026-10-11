@@ -157,6 +157,37 @@ Key rules:
   speculatively — wait until a capability's stated scope requires it.
 - Do **not** build ahead of the current capability's scope.
 
+## GitHub issue workflow
+
+- At the start of every implementation session, inspect the open GitHub issues
+  and select work in this order: the current active issue, then the lowest
+  open priority (`P0` before `P1` before `P2`). Priority is recorded in the
+  issue title and must not be inferred from file order or personal preference.
+- Do not start a lower-priority issue while a higher-priority issue is open,
+  unless the higher-priority issue is explicitly blocked. Record the blocker
+  and the chosen issue in the session update.
+- Treat one issue as the active issue for the session. Continue its checklist
+  from the last recorded state before selecting new work. A prompt file for a
+  step is guidance, not permission to skip a higher-priority issue.
+- Every implementation task must start from an open GitHub issue in
+  `saturn72/endpointer`; use the issue number in the branch name and commit
+  message when practical.
+- Before editing, read the issue, its linked ADR/spec and the nearby code. State
+  the issue's acceptance criteria and the smallest implementation slice.
+- Keep one issue as the active implementation scope. Do not silently expand
+  into other backlog items; create or reference a follow-up issue instead.
+- After each meaningful slice, run the narrowest relevant tests, then the
+  broader checks required by the affected service.
+- Before finishing, update the issue checklist with completed work, test
+  results and any remaining risk. Close the issue only when its acceptance
+  criteria are met; otherwise leave it open with a concrete next step.
+- When work changes the priority or scope, update both the GitHub issue and
+  `.docs/backlog.md` in the same implementation slice. Do not leave a second,
+  conflicting priority list in a prompt or local note.
+- Branches should use `feature/issue-<number>-<short-name>` for features,
+  `fix/issue-<number>-<short-name>` for fixes, and
+  `chore/issue-<number>-<short-name>` for maintenance.
+
 ## Design reference
 
 The dashboard UI (`src/dashboard`) is designed in **Stitch project `14388681312300072135`**

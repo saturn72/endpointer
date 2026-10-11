@@ -230,8 +230,8 @@ export default async function EndpointDetailPage({
                                             tabIndex={page <= 1 ? -1 : 0}
                                             className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-accent'}`}
                                         >
-                                                <ChevronLeft className="h-4 w-4" />
-                                                Previous
+                                            <ChevronLeft className="h-4 w-4" />
+                                            Previous
                                         </Link>
                                         <Link
                                             href={`/endpoints/${name}?page=${page + 1}`}
@@ -239,8 +239,8 @@ export default async function EndpointDetailPage({
                                             tabIndex={page >= totalPages ? -1 : 0}
                                             className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium ${page >= totalPages ? 'pointer-events-none opacity-50' : 'hover:bg-accent'}`}
                                         >
-                                                Next
-                                                <ChevronRightIcon className="h-4 w-4" />
+                                            Next
+                                            <ChevronRightIcon className="h-4 w-4" />
                                         </Link>
                                     </div>
                                 </div>
