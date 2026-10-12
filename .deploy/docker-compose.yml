@@ -64,7 +64,7 @@ services:
       - mongo
       - seaweedfs
     ports:
-      - "8083:8080"
+      - "${DATAFEED_MANAGER_HOST_PORT:-8083}:8080"
     environment:
       PORT: ${DATAFEED_MANAGER_PORT:-8080}
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017}

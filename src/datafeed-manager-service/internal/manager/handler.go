@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -128,12 +127,20 @@ func (h *Handler) ListDatafeeds(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to list datafeeds")
 		return
 	}
-	var docs []datafeedDoc
+	docs := []datafeedDoc{}
 	if err := cursor.All(r.Context(), &docs); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to read datafeeds")
 		return
 	}
-	writeJSON(w, http.StatusOK, docs)
+	writeJSON(w, http.StatusOK, nonNil(docs))
+}
+
+// nonNil keeps empty lists serialised as [] rather than null.
+func nonNil[T any](s []T) []T {
+	if s == nil {
+		return []T{}
+	}
+	return s
 }
 
 func (h *Handler) GetDatafeed(w http.ResponseWriter, r *http.Request) {
@@ -218,12 +225,12 @@ func (h *Handler) ListEndpoints(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to list endpoints")
 		return
 	}
-	var docs []endpointDoc
+	docs := []endpointDoc{}
 	if err := cursor.All(r.Context(), &docs); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to read endpoints")
 		return
 	}
-	writeJSON(w, http.StatusOK, docs)
+	writeJSON(w, http.StatusOK, nonNil(docs))
 }
 
 func (h *Handler) GetEndpoint(w http.ResponseWriter, r *http.Request) {
