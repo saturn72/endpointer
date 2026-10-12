@@ -9,6 +9,10 @@ Status: `[ ]` todo, `[~]` in progress, `[x]` done.
 
 ## Identity (Casdoor)
 
+The init delivery sequence and identity readiness gates are tracked in
+[`.docs/roadmap/init-delivery.md`](.docs/roadmap/init-delivery.md). The active
+implementation gate is GitHub issue #15; browser regression coverage is #23.
+
 ### Setup and sign-in
 - [x] Run Casdoor locally via docker-compose (OIDC, port 8000)
 - [x] Dashboard sign-in via Auth.js
@@ -33,12 +37,12 @@ Status: `[ ]` todo, `[~]` in progress, `[x]` done.
 - [ ] Generate Stitch screens for Datafeeds (list, create, detail); current UI is implemented by convention
 - [x] Create endpoint from the datafeed creation screen: "Create endpoint" option in the form (default on, endpoint name defaults to datafeed name); on successful datafeed creation the endpoint is created automatically; if the endpoint step fails the datafeed is kept and the user can retry
 - [x] Schema, indexes and idempotent migration: existing endpoints -> auto-created `static-file` datafeeds
-- [ ] `src/datafeed-manager-service` (definitions + adapter execution) — dashboard currently owns definitions/actions; create service before production
+- [~] `src/datafeed-manager-service` (definitions + static-file upload URL issuance) — dashboard definitions and signing now call the manager; upload tracking/sweeping and dedicated credentials remain in issue #17
 - [x] Re-key `versions` and the backend services from `endpoint_name` to `datafeed_id`
 - [x] Public URLs `<domain>/<user_name>/<endpoint_name>` and `<domain>/<user_name>/<endpoint_name>/version/<major>.<minor>` in `datafeed-service` (user -> endpoint -> datafeed -> version); strict version regex, 404 otherwise
 - [x] Retire the legacy `/{endpoint_name}` route in `datafeed-service` (no alias) and update docs/tests/README
 - [x] Presigned upload URL generation in the dashboard server action: ownership check, server-chosen key `<datafeed_id>/<uuid>/<filename>`, POST policy, 5 min expiry, size/type limits
-- [ ] Move presigned upload URL issuance from the dashboard action to `datafeed-manager-service` before production
+- [x] Move presigned upload URL issuance from the dashboard action to `datafeed-manager-service` before production
 - [ ] Verify SeaweedFS presigned POST policy support (content-length-range); fall back to signed headers + pipeline size check
 - [ ] Dedicated write-only S3 identity for upload signing, scoped to `raw-uploads`
 - [ ] `uploads` collection (pending/processed/rejected/expired) written when a presigned URL is issued; updated by the pipeline when a version is created or rejected
@@ -47,7 +51,7 @@ Status: `[ ]` todo, `[~]` in progress, `[x]` done.
 - [ ] `raw-uploads` bucket: private, CORS limited to dashboard origin
 - [ ] conversion-service re-validates format/size of browser-uploaded objects and deletes rejected ones
 - [x] Dashboard: browser uploads to the presigned URL (replace server-side upload action)
-- [ ] Update Next.js and Go instructions and `.github/copilot-instructions.md` (build/run) when the new service and flow land
+- [x] Update Next.js and Go instructions and `.github/copilot-instructions.md` (build/run) when the new service and flow land
 - [x] Dashboard: Datafeeds menu, create/list/detail, upload to datafeed, inline help text
 - [ ] Datafeed edit and delete, including version and raw-object cleanup
 - [x] Endpoint form: choose one datafeed (latest policy); pinned-version read support exists

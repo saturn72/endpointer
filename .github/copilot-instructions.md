@@ -132,6 +132,20 @@ cd src/datafeed-service
 MONGODB_URI=mongodb://localhost:27017 go test -tags=integration ./internal/httpapi/ -v
 ```
 
+### `src/datafeed-manager-service` (Go datafeed and endpoint manager)
+
+```bash
+cd src/datafeed-manager-service
+go test ./...
+go vet ./...
+go run ./cmd/datafeed-manager-service
+```
+
+The manager owns owner-scoped datafeed and endpoint definitions and issues
+short-lived presigned PUT URLs for browser uploads. The dashboard calls it at
+`DATAFEED_MANAGER_URL`; the public `datafeed-service` read path does not call
+the manager.
+
 Dashboard unit tests (need MongoDB): `MONGODB_URI=mongodb://localhost:27017 npm run test:unit`.
 Playwright e2e (`npm test`) predates sign-in and cannot log in yet (see backlog).
 

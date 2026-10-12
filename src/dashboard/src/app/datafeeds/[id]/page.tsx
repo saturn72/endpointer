@@ -11,7 +11,7 @@ import { AutoUploadForm } from '@/components/auto-upload-form';
 import { ErrorBanner } from '@/components/error-banner';
 import { createEndpointFromDatafeed } from '@/actions/datafeeds';
 import { requireUser } from '@/lib/session';
-import { backfillOwnerUsername, findOwnedDatafeed, type EndpointDoc } from '@/lib/datafeeds';
+import { managerGetDatafeed, managerListEndpoints, type ManagerEndpoint } from '@/lib/datafeed-manager';
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ error?: string }>;
@@ -27,16 +27,14 @@ export default async function DatafeedDetailPage({
 }) {
     const { id } = await params;
     const { error } = await searchParams;
-    const { id: ownerId, username } = await requireUser();
+    const { username } = await requireUser();
     if (!ObjectId.isValid(id)) notFound();
 
     const db = (await clientPromise).db(dbName);
-    const datafeed = await findOwnedDatafeed(db, ownerId, id);
+    const datafeed = await managerGetDatafeed(id).catch(() => null);
     if (!datafeed) notFound();
-
-    await backfillOwnerUsername(db, ownerId, username);
     const [endpoints, versions] = await Promise.all([
-        db.collection<EndpointDoc>('endpoints').find({ owner_id: ownerId, datafeed_id: id }).sort({ created_at: 1 }).toArray(),
+        managerListEndpoints().then((items) => items.filter((endpoint) => endpoint.datafeed_id === id) as ManagerEndpoint[]),
         db
             .collection('versions')
             .aggregate<{ major: number; minor: number; filename: string | null; created_at: Date; warnings: string[] }>([
@@ -108,7 +106,7 @@ export default async function DatafeedDetailPage({
                     ) : (
                         <ul className="space-y-2 text-sm">
                             {endpoints.map((ep) => (
-                                <li key={ep._id.toHexString()} className="flex items-center justify-between gap-3">
+                                <li key={ep._id} className="flex items-center justify-between gap-3">
                                     <Link href={`/endpoints/${ep.name}`} className="font-medium hover:text-primary">
                                         {ep.name}
                                     </Link>

@@ -1,19 +1,17 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { randomUUID, createHash } from 'crypto';
+import { createHash } from 'crypto';
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { clientPromise, dbName } from '@/lib/mongodb';
-import { ObjectId, type Db } from 'mongodb';
+import { type Db } from 'mongodb';
 import { requireUser, requireUserId } from '@/lib/session';
 import {
-    insertDatafeed,
-    createEndpointForDatafeed,
     findOwnedDatafeed,
     type DatafeedDoc,
     type EndpointDoc,
 } from '@/lib/datafeeds';
+import { managerCreateDatafeed, managerCreateEndpoint, managerGetEndpoint, managerGetUploadURL, managerListEndpoints } from '@/lib/datafeed-manager';
 
 // Wire in all format handlers — this import triggers the registry side-effects.
 import './formats/registry';
@@ -63,7 +61,7 @@ export type GetUploadUrlResult =
 // ─── createEndpoint ───────────────────────────────────────────────────────────
 
 export async function createEndpoint(formData: FormData) {
-    const { id: ownerId, username } = await requireUser();
+    await requireUser();
     const name = ((formData.get('name') as string) ?? '').trim();
     const idFieldRaw = ((formData.get('id_field') as string) ?? '').trim();
     const id_field = idFieldRaw || null;
@@ -98,20 +96,18 @@ export async function createEndpoint(formData: FormData) {
         );
     }
 
-    // ── Database insert ───────────────────────────────────────────────────────
+    // ── Manager service insert ────────────────────────────────────────────────
     try {
-        const client = await clientPromise;
-        const db = client.db(dbName);
         // One-step form: every endpoint gets its own static-file datafeed of the same name.
-        const datafeedId = await insertDatafeed(db, { ownerId, name, idField: id_field });
-        try {
-            await createEndpointForDatafeed(db, { ownerId, ownerUsername: username, datafeedId, name });
-        } catch (err) {
-            await db.collection('datafeeds').deleteOne({ _id: new ObjectId(datafeedId) });
-            throw err;
-        }
+        const datafeed = await managerCreateDatafeed({
+            name,
+            description: '',
+            adapter: 'static-file',
+            adapter_config: { id_field },
+        });
+        await managerCreateEndpoint({ datafeed_id: datafeed._id, name });
     } catch (err: unknown) {
-        if ((err as { code?: number }).code === 11000) {
+        if (String(err).includes('already exists')) {
             // Unique index violation — two requests raced with the same name.
             // This is a validation error: surface the message to the user.
             redirect(
@@ -120,7 +116,7 @@ export async function createEndpoint(formData: FormData) {
         }
         // Any other DB failure (unreachable, timeout, etc.) — log server-side,
         // show a generic infra-error banner, never expose raw error details.
-        console.error('createEndpoint: database error', err);
+        console.error('createEndpoint: manager error', err);
         redirect('/endpoints?infraError=1');
     }
 
@@ -135,12 +131,8 @@ export async function endpointNameExists(name: string): Promise<boolean | null> 
     const ownerId = await requireUserId();
     if (!SAFE_NAME_PATTERN.test(name) || name.length > MAX_ENDPOINT_NAME_LENGTH) return false;
     try {
-        const client = await clientPromise;
-        const doc = await client
-            .db(dbName)
-            .collection('endpoints')
-            .findOne({ owner_id: ownerId, name }, { projection: { _id: 1 } });
-        return doc !== null;
+        const endpoints = await managerListEndpoints();
+        return endpoints.some((endpoint) => endpoint.name === name);
     } catch (err) {
         console.error('endpointNameExists: database error', err);
         return null;
@@ -158,12 +150,12 @@ type DatafeedLookup = {
     notFound: string;
 };
 
-export async function getUploadUrl(endpointName: string, filename: string): Promise<GetUploadUrlResult> {
-    return getUploadUrlFor(byEndpoint(endpointName), filename);
+export async function getUploadUrl(endpointName: string, filename: string, size = 1, contentType = 'application/octet-stream'): Promise<GetUploadUrlResult> {
+    return getUploadUrlFor(byEndpoint(endpointName), filename, size, contentType);
 }
 
-export async function getDatafeedUploadUrl(datafeedId: string, filename: string): Promise<GetUploadUrlResult> {
-    return getUploadUrlFor(byDatafeedId(datafeedId), filename);
+export async function getDatafeedUploadUrl(datafeedId: string, filename: string, size = 1, contentType = 'application/octet-stream'): Promise<GetUploadUrlResult> {
+    return getUploadUrlFor(byDatafeedId(datafeedId), filename, size, contentType);
 }
 
 function byEndpoint(endpointName: string): DatafeedLookup {
@@ -185,7 +177,7 @@ function byDatafeedId(datafeedId: string): DatafeedLookup {
     };
 }
 
-async function getUploadUrlFor(lookup: DatafeedLookup, filename: string): Promise<GetUploadUrlResult> {
+async function getUploadUrlFor(lookup: DatafeedLookup, filename: string, size: number, contentType: string): Promise<GetUploadUrlResult> {
     const ownerId = await requireUserId();
     // The filename becomes part of the S3 key, so reject anything path-like.
     if (!filename || filename.length > 255 || /[\/\\\u0000-\u001f]/.test(filename)) {
@@ -219,22 +211,9 @@ async function getUploadUrlFor(lookup: DatafeedLookup, filename: string): Promis
         };
     }
 
-    // Key layout {datafeed_id}/{upload_uuid}/{filename} is parsed by conversion-service.
-    const key = `${datafeedId}/${randomUUID()}/${filename}`;
-
     try {
-        const { url, fields } = await createPresignedPost(s3Client, {
-            Bucket: process.env.S3_RAW_BUCKET!,
-            Key: key, // exact key — no wildcard or prefix matching
-            Conditions: [
-                // 1-byte minimum at policy level replaces the old explicit zero-byte
-                // check; finalizeUpload also checks as defense-in-depth.
-                ['content-length-range', 1, MAX_UPLOAD_BYTES],
-            ],
-            Expires: PRESIGNED_URL_EXPIRY_SECONDS,
-        });
-
-        return { status: 'success', url, fields, key, format };
+        const upload = await managerGetUploadURL(datafeedId, { filename, size, content_type: contentType });
+        return { status: 'success', url: upload.url, fields: upload.headers, key: upload.key, format };
     } catch (err) {
         console.error('getUploadUrl: presigned POST generation failed', err);
         return {
@@ -434,9 +413,7 @@ export async function setVersionPublished(
     try {
         const client = await clientPromise;
         const db = client.db(dbName);
-        const owned = await db
-            .collection<EndpointDoc>('endpoints')
-            .findOne({ owner_id: ownerId, name: endpointName }, { projection: { datafeed_id: 1 } });
+        const owned = await managerGetEndpoint(endpointName);
         if (!owned) throw new Error('Endpoint not found');
         await db.collection('versions').updateOne(
             { datafeed_id: owned.datafeed_id, major, minor },

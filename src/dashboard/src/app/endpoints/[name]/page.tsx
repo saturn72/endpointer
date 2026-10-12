@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronRight, CloudUpload, FileText, Key, Eye, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { AutoUploadForm } from '@/components/auto-upload-form';
 import { requireUser } from '@/lib/session';
-import { findOwnedDatafeed, backfillOwnerUsername } from '@/lib/datafeeds';
+import { managerGetDatafeed, managerGetEndpoint } from '@/lib/datafeed-manager';
 
 interface EndpointDoc extends Document {
     name: string;
@@ -39,7 +39,7 @@ export default async function EndpointDetailPage({
     searchParams: SearchParams;
 }) {
     const { name } = await params;
-    const { id: ownerId, username } = await requireUser();
+    const { username } = await requireUser();
     const sp = await searchParams;
     const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
     const skip = (page - 1) * PAGE_SIZE;
@@ -50,10 +50,9 @@ export default async function EndpointDetailPage({
     const client = await clientPromise;
     const db = client.db(dbName);
 
-    await backfillOwnerUsername(db, ownerId, username);
-    const endpoint = await db.collection<EndpointDoc>('endpoints').findOne({ owner_id: ownerId, name });
+    const endpoint = await managerGetEndpoint(name).catch(() => null);
     if (!endpoint) notFound();
-    const datafeed = await findOwnedDatafeed(db, ownerId, endpoint.datafeed_id);
+    const datafeed = await managerGetDatafeed(endpoint.datafeed_id).catch(() => null);
     const idField = datafeed?.adapter_config.id_field ?? null;
 
     const [recentVersions, totalCount] = await Promise.all([

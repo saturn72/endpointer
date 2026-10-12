@@ -1,13 +1,14 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { ObjectId } from 'mongodb';
-import { clientPromise, dbName } from '@/lib/mongodb';
 import { requireUser } from '@/lib/session';
 import {
+    managerCreateDatafeed,
+    managerCreateEndpoint,
+    managerListDatafeeds,
+} from '@/lib/datafeed-manager';
+import {
     validateName,
-    insertDatafeed,
-    createEndpointForDatafeed,
     SAFE_NAME_PATTERN,
     MAX_NAME_LENGTH,
 } from '@/lib/datafeeds';
@@ -22,7 +23,7 @@ function fail(message: string, path = `${DATAFEEDS_PATH}?error=`): never {
 // pointing at it. The datafeed is created first; if only the endpoint fails the datafeed is
 // kept and the user is sent to it with a message so they can retry from there.
 export async function createDatafeed(formData: FormData) {
-    const { id: ownerId, username } = await requireUser();
+    await requireUser();
     const name = ((formData.get('name') as string) ?? '').trim();
     const description = ((formData.get('description') as string) ?? '').trim().slice(0, 500);
     const idField = ((formData.get('id_field') as string) ?? '').trim() || null;
@@ -40,25 +41,28 @@ export async function createDatafeed(formData: FormData) {
     }
 
     let datafeedId: string;
-    const client = await clientPromise;
-    const db = client.db(dbName);
     try {
-        datafeedId = await insertDatafeed(db, { ownerId, name, description, idField });
+        const datafeed = await managerCreateDatafeed({
+            name,
+            description,
+            adapter: 'static-file',
+            adapter_config: { id_field: idField },
+        });
+        datafeedId = datafeed._id;
     } catch (err: unknown) {
-        if ((err as { code?: number }).code === 11000) fail('A datafeed with that name already exists');
-        console.error('createDatafeed: database error', err);
+        if (String(err).includes('already exists')) fail('A datafeed with that name already exists');
+        console.error('createDatafeed: manager error', err);
         redirect(`${DATAFEEDS_PATH}?infraError=1`);
     }
 
     if (createEndpoint) {
         try {
-            await createEndpointForDatafeed(db, { ownerId, ownerUsername: username, datafeedId, name: endpointName });
+            await managerCreateEndpoint({ name: endpointName, datafeed_id: datafeedId });
         } catch (err: unknown) {
-            const reason =
-                (err as { code?: number }).code === 11000
+            const reason = String(err).includes('already exists')
                     ? `an endpoint named "${endpointName}" already exists`
                     : 'a server error occurred';
-            if ((err as { code?: number }).code !== 11000) console.error('createDatafeed: endpoint insert failed', err);
+            if (!String(err).includes('already exists')) console.error('createDatafeed: endpoint insert failed', err);
             fail(`Datafeed created, but the endpoint was not: ${reason}. You can create it from the datafeed page.`, `${DATAFEEDS_PATH}/${datafeedId}?error=`);
         }
     }
@@ -68,27 +72,18 @@ export async function createDatafeed(formData: FormData) {
 
 // Creates an endpoint for an existing datafeed (retry path and the "connect endpoint" form).
 export async function createEndpointFromDatafeed(formData: FormData) {
-    const { id: ownerId, username } = await requireUser();
+    await requireUser();
     const datafeedId = ((formData.get('datafeed_id') as string) ?? '').trim();
     const name = ((formData.get('endpoint_name') as string) ?? '').trim();
     const back = `${DATAFEEDS_PATH}/${encodeURIComponent(datafeedId)}?error=`;
 
     const nameError = validateName(name, 'Endpoint name');
     if (nameError) fail(nameError, back);
-    if (!ObjectId.isValid(datafeedId)) fail('Datafeed not found');
-
-    const client = await clientPromise;
-    const db = client.db(dbName);
-    const owned = await db
-        .collection('datafeeds')
-        .findOne({ _id: new ObjectId(datafeedId), owner_id: ownerId }, { projection: { _id: 1 } });
-    if (!owned) fail('Datafeed not found');
-
     try {
-        await createEndpointForDatafeed(db, { ownerId, ownerUsername: username, datafeedId, name });
+        await managerCreateEndpoint({ name, datafeed_id: datafeedId });
     } catch (err: unknown) {
-        if ((err as { code?: number }).code === 11000) fail('An endpoint with that name already exists', back);
-        console.error('createEndpointFromDatafeed: database error', err);
+        if (String(err).includes('already exists')) fail('An endpoint with that name already exists', back);
+        console.error('createEndpointFromDatafeed: manager error', err);
         fail('A server error occurred. Please try again.', back);
     }
     redirect(`${DATAFEEDS_PATH}/${datafeedId}`);
@@ -100,12 +95,7 @@ export async function datafeedNameExists(name: string): Promise<boolean | null> 
     const { id: ownerId } = await requireUser();
     if (!SAFE_NAME_PATTERN.test(name) || name.length > MAX_NAME_LENGTH) return false;
     try {
-        const client = await clientPromise;
-        const doc = await client
-            .db(dbName)
-            .collection('datafeeds')
-            .findOne({ owner_id: ownerId, name }, { projection: { _id: 1 } });
-        return doc !== null;
+        return (await managerListDatafeeds()).some((datafeed) => datafeed.name === name);
     } catch (err) {
         console.error('datafeedNameExists: database error', err);
         return null;

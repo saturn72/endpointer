@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronRight, ExternalLink, FileText, AlertTriangle, CheckCircle2, Table2 } from 'lucide-react';
 import { PublishToggle } from '@/components/publish-toggle';
 import { requireUser } from '@/lib/session';
+import { managerGetEndpoint } from '@/lib/datafeed-manager';
 
 interface VersionDetailDoc extends Document {
     major: number;
@@ -22,7 +23,7 @@ type Params = Promise<{ name: string; version: string }>;
 
 export default async function UploadDetailPage({ params }: { params: Params }) {
     const { name, version } = await params;
-    const { id: ownerId, username } = await requireUser();
+    const { username } = await requireUser();
 
     const parts = version.split('-');
     const major = parseInt(parts[0] ?? '', 10);
@@ -35,7 +36,7 @@ export default async function UploadDetailPage({ params }: { params: Params }) {
     const client = await clientPromise;
     const db = client.db(dbName);
 
-    const endpoint = await db.collection('endpoints').findOne({ owner_id: ownerId, name });
+    const endpoint = await managerGetEndpoint(name).catch(() => null);
     if (!endpoint) notFound();
 
     const [versionDoc] = await Promise.all([

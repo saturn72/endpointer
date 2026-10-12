@@ -56,6 +56,26 @@ services:
       MONGODB_DB: ${MONGODB_DB:-endpointer}
     restart: unless-stopped
 
+  datafeed-manager-service:
+    build:
+      context: ../src/datafeed-manager-service
+      dockerfile: Dockerfile
+    depends_on:
+      - mongo
+      - seaweedfs
+    ports:
+      - "8083:8080"
+    environment:
+      PORT: ${DATAFEED_MANAGER_PORT:-8080}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017}
+      MONGODB_DB: ${MONGODB_DB:-endpointer}
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_RAW_BUCKET: ${S3_RAW_BUCKET:-raw-uploads}
+    restart: unless-stopped
+
   datafeed-service:
     build:
       context: ../src/datafeed-service

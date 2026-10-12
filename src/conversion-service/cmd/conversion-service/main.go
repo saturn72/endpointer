@@ -108,14 +108,14 @@ func main() {
 // present on the source object, is copied forward as required by the warning
 // propagation contract (see .docs/decisions/001-versions-schema-and-warning-propagation.md).
 func processEvent(ctx context.Context, s3c *s3.Client, rawBucket, convertedBucket, key string) error {
-	// Parse datafeed_id and upload_uuid from the S3 key.
-	// Format: {datafeed_id}/{upload_uuid}/{filename}
-	parts := strings.SplitN(key, "/", 3)
-	if len(parts) < 3 {
-		return fmt.Errorf("unexpected key format (want datafeed/uuid/file, got %q)", key)
+	// Manager-owned keys are raw-uploads/{owner_id}/{datafeed_id}/{uuid}; the
+	// original filename is object metadata, never a client-controlled key part.
+	parts := strings.Split(key, "/")
+	if len(parts) != 4 || parts[0] != "raw-uploads" {
+		return fmt.Errorf("unexpected key format (want raw-uploads/owner/datafeed/uuid, got %q)", key)
 	}
-	datafeedID := parts[0]
-	uploadUUID := parts[1]
+	datafeedID := parts[2]
+	uploadUUID := parts[3]
 
 	// Fetch the raw CSV including its user metadata.
 	getResp, err := s3c.GetObject(ctx, &s3.GetObjectInput{
@@ -127,8 +127,11 @@ func processEvent(ctx context.Context, s3c *s3.Client, rawBucket, convertedBucke
 	}
 	defer getResp.Body.Close()
 
-	// Route to format-specific converter by file extension.
-	filename := parts[2]
+	filename := getResp.Metadata["original-filename"]
+	if filename == "" {
+		return fmt.Errorf("raw object %q has no original-filename metadata", key)
+	}
+	// Route to format-specific converter by the original filename extension.
 	ext := ""
 	if i := strings.LastIndex(filename, "."); i >= 0 {
 		ext = strings.ToLower(filename[i:])
@@ -151,11 +154,11 @@ func processEvent(ctx context.Context, s3c *s3.Client, rawBucket, convertedBucke
 	destKey := datafeedID + "/" + uploadUUID + "/data.json"
 
 	// Propagate metadata to the converted object.
-	// Always include "filename" (the original upload filename from the raw key)
+	// Always include "filename" (the original upload filename from object metadata)
 	// so the versioning-service can store it for display in the dashboard.
 	// Also propagate "warnings" if present on the source object.
 	// Both keys are lower-case per S3 metadata normalisation.
-	metadata := map[string]string{"filename": parts[2]}
+	metadata := map[string]string{"filename": filename}
 	if w, ok := getResp.Metadata["warnings"]; ok && w != "" {
 		metadata["warnings"] = w
 	}

@@ -44,8 +44,8 @@ export function AutoUploadForm({ endpointName, datafeedId }: AutoUploadFormProps
 
         // ── Step 1: get presigned POST URL from the server ────────────────────
         const urlResult = datafeedId
-            ? await getDatafeedUploadUrl(datafeedId, file.name)
-            : await getUploadUrl(endpointName!, file.name);
+            ? await getDatafeedUploadUrl(datafeedId, file.name, file.size, file.type || 'application/octet-stream')
+            : await getUploadUrl(endpointName!, file.name, file.size, file.type || 'application/octet-stream');
         if (urlResult.status !== 'success') {
             setResult(urlResult);
             setUploading(false);
@@ -57,14 +57,13 @@ export function AutoUploadForm({ endpointName, datafeedId }: AutoUploadFormProps
         // ── Step 2: POST file directly to S3 (browser → S3, no server relay) ─
         // fetch is used instead of XHR; upload progress events are not available
         // via the Fetch API, so the drop zone shows an indeterminate spinner.
-        const fd = new FormData();
-        // Presigned POST fields must come before the file content.
-        for (const [k, v] of Object.entries(fields)) fd.append(k, v);
-        fd.append('file', file); // actual content — must be last
-
         let s3Error: string | null = null;
         try {
-            const response = await fetch(url, { method: 'POST', body: fd });
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: fields,
+                body: file,
+            });
             if (!response.ok) {
                 // Non-2xx from S3 means the presigned POST policy was violated
                 // (e.g. file too large, or the URL expired).

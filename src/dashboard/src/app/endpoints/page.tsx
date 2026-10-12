@@ -1,20 +1,13 @@
 import { clientPromise, dbName } from '@/lib/mongodb';
-import { WithId, Document } from 'mongodb';
+import { Document } from 'mongodb';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Database, FolderOpen } from 'lucide-react';
 import Link from 'next/link';
 import { NewEndpointSheet } from '@/components/new-endpoint-sheet';
 import { ErrorBanner } from '@/components/error-banner';
-import { ObjectId } from 'mongodb';
 import { requireUser } from '@/lib/session';
-import { backfillOwnerUsername, type DatafeedDoc } from '@/lib/datafeeds';
-
-interface EndpointDoc extends Document {
-    name: string;
-    datafeed_id: string;
-    created_at: Date;
-}
+import { managerListDatafeeds, managerListEndpoints, type ManagerDatafeed, type ManagerEndpoint } from '@/lib/datafeed-manager';
 
 interface VersionDoc extends Document {
     datafeed_id: string;
@@ -30,9 +23,9 @@ export default async function EndpointsPage({
     searchParams: SearchParams;
 }) {
     const { error, infraError } = await searchParams;
-    const { id: ownerId, username } = await requireUser();
+    await requireUser();
 
-    let endpoints: WithId<EndpointDoc>[] = [];
+    let endpoints: ManagerEndpoint[] = [];
     let versionMap: Record<string, string> = {};
     let idFieldMap: Record<string, string | null> = {};
     let dbError = false;
@@ -40,13 +33,7 @@ export default async function EndpointsPage({
     try {
         const client = await clientPromise;
         const db = client.db(dbName);
-
-        await backfillOwnerUsername(db, ownerId, username);
-        endpoints = await db
-            .collection<EndpointDoc>('endpoints')
-            .find({ owner_id: ownerId })
-            .sort({ created_at: -1 })
-            .toArray();
+        endpoints = await managerListEndpoints();
 
         const latestVersions = await db
             .collection<VersionDoc>('versions')
@@ -63,13 +50,8 @@ export default async function EndpointsPage({
             ])
             .toArray();
 
-        const datafeeds = await db
-            .collection<DatafeedDoc>('datafeeds')
-            .find({
-                _id: { $in: endpoints.filter((e) => ObjectId.isValid(e.datafeed_id)).map((e) => new ObjectId(e.datafeed_id)) },
-            })
-            .toArray();
-        idFieldMap = Object.fromEntries(datafeeds.map((d) => [d._id.toHexString(), d.adapter_config.id_field]));
+        const datafeeds = await managerListDatafeeds();
+        idFieldMap = Object.fromEntries(datafeeds.map((d: ManagerDatafeed) => [d._id, d.adapter_config.id_field]));
 
         versionMap = Object.fromEntries(
             latestVersions.map((v) => [v._id, `v${v.major}.${v.minor}`]),
@@ -113,14 +95,14 @@ export default async function EndpointsPage({
                 </div>
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {endpoints.map((ep: WithId<EndpointDoc>) => {
+                    {endpoints.map((ep) => {
                         const version = versionMap[ep.datafeed_id];
                         const idField = idFieldMap[ep.datafeed_id];
                         const isActive = Boolean(version);
                         return (
                             <Link
                                 href={`/endpoints/${ep.name}`}
-                                key={ep._id.toString()}
+                                key={ep._id}
                                 className="group"
                             >
                                 <Card className="h-full border border-border shadow-sm hover:shadow-md transition-shadow">

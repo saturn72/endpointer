@@ -6,7 +6,7 @@ import { Layers, FolderOpen } from 'lucide-react';
 import { NewDatafeedSheet } from '@/components/new-datafeed-sheet';
 import { ErrorBanner } from '@/components/error-banner';
 import { requireUserId } from '@/lib/session';
-import type { DatafeedDoc } from '@/lib/datafeeds';
+import { managerListDatafeeds, type ManagerDatafeed } from '@/lib/datafeed-manager';
 
 type SearchParams = Promise<{ error?: string; infraError?: string }>;
 
@@ -14,19 +14,15 @@ export default async function DatafeedsPage({ searchParams }: { searchParams: Se
     const { error, infraError } = await searchParams;
     const ownerId = await requireUserId();
 
-    let datafeeds: DatafeedDoc[] = [];
+    let datafeeds: ManagerDatafeed[] = [];
     let latest: Record<string, string> = {};
     let endpointCounts: Record<string, number> = {};
     let dbError = false;
 
     try {
         const db = (await clientPromise).db(dbName);
-        datafeeds = await db
-            .collection<DatafeedDoc>('datafeeds')
-            .find({ owner_id: ownerId })
-            .sort({ created_at: -1 })
-            .toArray();
-        const ids = datafeeds.map((d) => d._id.toHexString());
+        datafeeds = await managerListDatafeeds();
+        const ids = datafeeds.map((d) => d._id);
 
         const versions = await db
             .collection('versions')
@@ -80,7 +76,7 @@ export default async function DatafeedsPage({ searchParams }: { searchParams: Se
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {datafeeds.map((d) => {
-                        const id = d._id.toHexString();
+                        const id = d._id;
                         const n = endpointCounts[id] ?? 0;
                         return (
                             <Link href={`/datafeeds/${id}`} key={id} className="group">
