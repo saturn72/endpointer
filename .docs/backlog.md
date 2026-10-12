@@ -18,7 +18,7 @@ implementation gate is GitHub issue #15; browser regression coverage is #23.
 - [x] Dashboard sign-in via Auth.js
 - [x] Sign-up form: username, email, password and confirm; unique username and email (dedicated `endpointer` organization)
 - [x] Verify the login round trip in a browser (`session.user.id`, username); covered by `npm run test:auth` (#15, #23)
-- [ ] Replace the Casdoor logo and branding on the auth screen with FeedHub Admin
+- [x] Replace the Casdoor branding on the auth screen with FeedHub Admin (title, logo alt, footer via `init_data.example.json`; a custom logo image is still open)
 
 ### Verification and MFA
 - [ ] Verify email address: configure an email provider in Casdoor, set the Email sign-up rule back to verified (currently `No verification`), and show the verified state on the profile

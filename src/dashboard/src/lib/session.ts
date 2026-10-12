@@ -1,4 +1,5 @@
 import { auth } from '@/auth';
+import { userFromSession } from './identity';
 
 // Returns the signed-in user's id or throws; the proxy already redirects anonymous page requests.
 export async function requireUserId(): Promise<string> {
@@ -7,9 +8,5 @@ export async function requireUserId(): Promise<string> {
 
 // Username is the public URL segment (<domain>/<user_name>/<endpoint_name>) and is immutable.
 export async function requireUser(): Promise<{ id: string; username: string }> {
-    const session = await auth();
-    const id = session?.user?.id;
-    const username = session?.user?.username;
-    if (!id || !username) throw new Error('Unauthenticated');
-    return { id, username };
+    return userFromSession(await auth());
 }

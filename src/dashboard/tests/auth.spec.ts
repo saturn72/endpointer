@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 
 // Needs the docker-compose Casdoor (:8000) and the dashboard (:3000). Accounts are generated per run.
+const casdoorPort = new URL(process.env.AUTH_CASDOOR_ISSUER ?? 'http://localhost:8000').port;
 const run = randomUUID().slice(0, 8);
 const user = {
     name: `e2e${run}`,
@@ -34,7 +35,7 @@ async function signOut(page: Page) {
 test.describe.serial('identity gate', () => {
     test('anonymous protected route redirects to Casdoor', async ({ page }) => {
         await page.goto('/endpoints');
-        await expect(page).toHaveURL(/:8000\/login\/oauth\/authorize/);
+        await expect(page).toHaveURL(new RegExp(`:${casdoorPort}/login/oauth/authorize`));
         await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
     });
 
@@ -42,7 +43,7 @@ test.describe.serial('identity gate', () => {
         await page.goto('/endpoints');
         await signUpAt(page, `x${run}`, `x${run}@example.test`, user.password, 'different-password');
         await expect(page.getByText(/inconsistent with the password/i).first()).toBeVisible();
-        await expect(page).toHaveURL(/:8000\/signup/);
+        await expect(page).toHaveURL(new RegExp(`:${casdoorPort}/signup`));
     });
 
     test('signup lands on the requested page and exposes claims', async ({ page }) => {
@@ -65,6 +66,43 @@ test.describe.serial('identity gate', () => {
             await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
             await expect(page.getByText('A server error occurred')).toHaveCount(0);
         }
+    });
+
+    test('two users keep same-named datafeeds isolated', async ({ browser }) => {
+        const shared = `shared-${run}`;
+        const onlyA = `only-a-${run}`;
+
+        async function createDatafeed(page: Page, name: string) {
+            await page.goto('/datafeeds');
+            await page.getByRole('button', { name: 'New Datafeed' }).first().click();
+            await page.getByLabel(/^Name/).fill(name);
+            const create = page.getByRole('button', { name: 'Create', exact: true });
+            await expect(create).toBeEnabled();
+            await create.click();
+            await page.waitForURL(/\/datafeeds\/[0-9a-f]{24}/);
+            await page.goto('/datafeeds');
+            await expect(page.getByRole('link', { name: new RegExp(name) }).first()).toBeVisible();
+        }
+
+        const ctxA = await browser.newContext();
+        const a = await ctxA.newPage();
+        await a.goto('/login');
+        await signIn(a);
+        await createDatafeed(a, shared);
+        await createDatafeed(a, onlyA);
+
+        const ctxB = await browser.newContext();
+        const b = await ctxB.newPage();
+        await b.goto('/datafeeds');
+        await signUpAt(b, `b${run}`, `b${run}@example.test`, user.password);
+        await b.waitForURL(/localhost:3000\/datafeeds/);
+        await expect(b.getByRole('link', { name: new RegExp(onlyA) })).toHaveCount(0);
+        await expect(b.getByRole('link', { name: new RegExp(shared) })).toHaveCount(0);
+        await createDatafeed(b, shared);
+        await expect(b.getByRole('link', { name: new RegExp(onlyA) })).toHaveCount(0);
+
+        await ctxA.close();
+        await ctxB.close();
     });
 
     test('signout clears the Auth.js and Casdoor sessions', async ({ page }) => {
