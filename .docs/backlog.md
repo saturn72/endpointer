@@ -17,7 +17,7 @@ implementation gate is GitHub issue #15; browser regression coverage is #23.
 - [x] Run Casdoor locally via docker-compose (OIDC, port 8000)
 - [x] Dashboard sign-in via Auth.js
 - [x] Sign-up form: username, email, password and confirm; unique username and email (dedicated `endpointer` organization)
-- [ ] Verify the login round trip in a browser (`session.user.id`, username) and review the other uncommitted Casdoor changes in the working tree
+- [x] Verify the login round trip in a browser (`session.user.id`, username); covered by `npm run test:auth` (#15, #23)
 - [ ] Replace the Casdoor logo and branding on the auth screen with FeedHub Admin
 
 ### Verification and MFA

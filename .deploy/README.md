@@ -6,3 +6,17 @@ Local/dev infrastructure only.
 - `.env.example` — template of all env vars the dashboard reads.
 
 Start services: `docker compose -f .deploy/docker-compose.yml up -d`
+
+## Casdoor first-run setup
+
+`casdoor/init_data.json` is gitignored (it holds the OIDC client secret). Create it once from the template before the first start:
+
+```bash
+cd .deploy/casdoor
+cp init_data.example.json init_data.json
+# replace clientId / clientSecret with random values, e.g. `openssl rand -hex 10` and `openssl rand -hex 20`
+```
+
+Use the same values as `AUTH_CASDOOR_ID` / `AUTH_CASDOOR_SECRET` in `src/dashboard/.env.local`. Casdoor only reads this file when the database is empty, so changes later must be made in the admin console (`http://localhost:8000`, default `built-in/admin` / `123`; change it before any non-local use, see issue #19).
+
+If host port 8083 is taken, set `DATAFEED_MANAGER_HOST_PORT` and point `DATAFEED_MANAGER_URL` at it.

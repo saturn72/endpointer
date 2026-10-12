@@ -24,8 +24,26 @@ This dashboard is feature-complete for the initial hardening scope:
 - XSD / schema validation for XML
 - Multi-sheet support beyond the first worksheet (XLSX / XLS)
 - Namespace-aware XML handling
-- Authentication / authorisation
 - TSV, YAML, or any other formats beyond the six above
+
+---
+
+## Authentication
+
+Sign-up, sign-in and sign-out are hosted by Casdoor (OIDC, `endpointer-dashboard` application in the `endpointer` organization); the dashboard uses Auth.js. All routes except `/login` and `/api/auth` require a session.
+
+- `session.user.id` is the OIDC `sub` claim and is the owner key.
+- `session.user.username` is Casdoor's immutable `name` claim and is the public URL segment.
+- Access is denied when either claim is missing.
+- Required env vars: `AUTH_SECRET`, `AUTH_URL`, `AUTH_CASDOOR_ISSUER`, `AUTH_CASDOOR_ID`, `AUTH_CASDOOR_SECRET` (see `.deploy/.env.example`). The Casdoor redirect URIs must include `<AUTH_URL>/api/auth/callback/casdoor`.
+- Email verification, phone OTP and MFA are not enabled yet (tracked in issue #16).
+
+Browser regression suite (needs the docker-compose Casdoor and a running dashboard; accounts are generated per run):
+
+```bash
+npx playwright install chromium
+npm run test:auth
+```
 
 ---
 
@@ -160,7 +178,6 @@ INI is the least settled format. The tabular-feed model (records × fixed column
 
 The following items were intentionally excluded from the hardening + format-support phase. They are listed explicitly so future contributors understand what is and is not built.
 
-- **Authentication / authorisation** — no user accounts, sessions, or API keys. Out of scope for this phase.
 - **Endpoint edit / delete** — endpoints can be created but not modified or removed through the UI.
 - **Version history listing** — the endpoint detail page does not list past upload versions.
 - **Resumable / chunked uploads** — all uploads go through a single presigned POST with a hard 10 MB limit.

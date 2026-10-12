@@ -1,0 +1,44 @@
+{
+  "organizations": [
+    {
+      "owner": "admin",
+      "name": "endpointer",
+      "displayName": "FeedHub Admin",
+      "passwordType": "bcrypt",
+      "passwordOptions": ["AtLeast6"],
+      "defaultApplication": "endpointer-dashboard",
+      "defaultAvatar": "",
+      "languages": ["en"],
+      "initScore": 0,
+      "isProfilePublic": false
+    }
+  ],
+  "applications": [
+    {
+      "owner": "admin",
+      "name": "endpointer-dashboard",
+      "displayName": "FeedHub Admin",
+      "organization": "endpointer",
+      "footerHtml": "<span></span>",
+      "enablePassword": true,
+      "enableSignUp": true,
+      "clientId": "REPLACE_WITH_RANDOM_HEX_20",
+      "clientSecret": "REPLACE_WITH_RANDOM_HEX_40",
+      "providers": [],
+      "signinMethods": [{ "name": "Password", "displayName": "Password", "rule": "All" }],
+      "signupItems": [
+        { "name": "Username", "visible": true, "required": true, "prompted": false, "rule": "None" },
+        { "name": "Email", "visible": true, "required": true, "prompted": false, "rule": "No verification" },
+        { "name": "Password", "visible": true, "required": true, "prompted": false, "rule": "None" },
+        { "name": "Confirm password", "visible": true, "required": true, "prompted": false, "rule": "None" }
+      ],
+      "grantTypes": ["authorization_code", "refresh_token"],
+      "redirectUris": [
+        "http://localhost:3000/api/auth/callback/casdoor",
+        "http://localhost:3000/login"
+      ],
+      "tokenFormat": "JWT",
+      "expireInHours": 168
+    }
+  ]
+}
