@@ -42,8 +42,12 @@ func main() {
 	if cfg.s3Endpoint != "" {
 		s3Options.BaseEndpoint = &cfg.s3Endpoint
 	}
-	s3Client := s3.New(s3Options)
-	h := &manager.Handler{Datafeeds: db.Collection("datafeeds"), Endpoints: db.Collection("endpoints"), DB: db, Presigner: s3.NewPresignClient(s3Client), Bucket: cfg.rawBucket, ServiceToken: cfg.serviceToken}
+	// Presigned URLs are used by browsers, so they must be signed for the public S3 host.
+	presignOptions := s3Options
+	if cfg.s3PublicEndpoint != "" {
+		presignOptions.BaseEndpoint = &cfg.s3PublicEndpoint
+	}
+	h := &manager.Handler{Datafeeds: db.Collection("datafeeds"), Endpoints: db.Collection("endpoints"), DB: db, Presigner: s3.NewPresignClient(s3.New(presignOptions)), Bucket: cfg.rawBucket, ServiceToken: cfg.serviceToken}
 	srv := &http.Server{Addr: ":" + cfg.port, Handler: manager.Router(h)}
 	go func() { <-ctx.Done(); _ = srv.Shutdown(context.Background()) }()
 	slog.Info("datafeed-manager-service listening", "addr", srv.Addr)
@@ -53,10 +57,10 @@ func main() {
 	}
 }
 
-type config struct{ port, mongoURI, mongoDB, s3Endpoint, s3Region, s3AccessKey, s3SecretKey, rawBucket, serviceToken string }
+type config struct{ port, mongoURI, mongoDB, s3Endpoint, s3PublicEndpoint, s3Region, s3AccessKey, s3SecretKey, rawBucket, serviceToken string }
 
 func loadConfig() config {
-	return config{port: env("PORT", "8080"), mongoURI: env("MONGODB_URI", "mongodb://localhost:27017"), mongoDB: env("MONGODB_DB", "endpointer"), s3Endpoint: env("S3_ENDPOINT", ""), s3Region: env("S3_REGION", "us-east-1"), s3AccessKey: os.Getenv("S3_ACCESS_KEY_ID"), s3SecretKey: os.Getenv("S3_SECRET_ACCESS_KEY"), rawBucket: env("S3_RAW_BUCKET", "raw-uploads"), serviceToken: os.Getenv("MANAGER_SERVICE_TOKEN")}
+	return config{port: env("PORT", "8080"), mongoURI: env("MONGODB_URI", "mongodb://localhost:27017"), mongoDB: env("MONGODB_DB", "endpointer"), s3Endpoint: env("S3_ENDPOINT", ""), s3PublicEndpoint: env("S3_PUBLIC_ENDPOINT", env("S3_ENDPOINT", "")), s3Region: env("S3_REGION", "us-east-1"), s3AccessKey: os.Getenv("S3_ACCESS_KEY_ID"), s3SecretKey: os.Getenv("S3_SECRET_ACCESS_KEY"), rawBucket: env("S3_RAW_BUCKET", "raw-uploads"), serviceToken: os.Getenv("MANAGER_SERVICE_TOKEN")}
 }
 func env(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
@@ -73,6 +77,10 @@ func ensureIndexes(ctx context.Context, db *mongo.Database) error {
 	if err != nil {
 		return fmt.Errorf("creating datafeed indexes: %w", err)
 	}
+	// Pre-tenancy deployments have a global unique name index that blocks two owners sharing a name.
+	if err := db.Collection("endpoints").Indexes().DropOne(ctx, "endpoints_name_unique"); err != nil && !isIndexNotFound(err) {
+		return fmt.Errorf("dropping legacy endpoint name index: %w", err)
+	}
 	_, err = db.Collection("endpoints").Indexes().CreateMany(ctx, []mongo.IndexModel{{
 		Keys:    bson.D{{Key: "owner_id", Value: 1}, {Key: "name", Value: 1}},
 		Options: options.Index().SetUnique(true).SetName("endpoints_owner_name_unique"),
@@ -81,4 +89,9 @@ func ensureIndexes(ctx context.Context, db *mongo.Database) error {
 		return fmt.Errorf("creating endpoint indexes: %w", err)
 	}
 	return nil
+}
+
+func isIndexNotFound(err error) bool {
+	var ce mongo.CommandError
+	return errors.As(err, &ce) && (ce.Code == 27 || ce.Code == 26 || ce.Name == "IndexNotFound" || ce.Name == "NamespaceNotFound")
 }

@@ -282,13 +282,13 @@ func (h *Handler) GetUploadURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := fmt.Sprintf("raw-uploads/%s/%s/%s", ownerID, dfID, newUUID())
-	request, err := h.Presigner.PresignPutObject(r.Context(), &s3.PutObjectInput{Bucket: aws.String(h.Bucket), Key: aws.String(key), ContentType: aws.String(input.ContentType)}, s3.WithPresignExpires(uploadURLExpiry))
+	request, err := h.Presigner.PresignPutObject(r.Context(), &s3.PutObjectInput{Bucket: aws.String(h.Bucket), Key: aws.String(key), ContentType: aws.String(input.ContentType), Metadata: map[string]string{"original-filename": input.Filename}}, s3.WithPresignExpires(uploadURLExpiry))
 	if err != nil {
 		slog.Error("presigning upload", "error", err)
 		writeError(w, http.StatusInternalServerError, "upload could not be prepared")
 		return
 	}
-	writeJSON(w, http.StatusOK, uploadResponse{URL: request.URL, Method: http.MethodPut, Headers: map[string]string{"Content-Type": input.ContentType}, Key: key, Format: format, ExpiresIn: int(uploadURLExpiry.Seconds())})
+	writeJSON(w, http.StatusOK, uploadResponse{URL: request.URL, Method: http.MethodPut, Headers: map[string]string{"Content-Type": input.ContentType, "x-amz-meta-original-filename": input.Filename}, Key: key, Format: format, ExpiresIn: int(uploadURLExpiry.Seconds())})
 }
 
 func (h *Handler) now() time.Time {
