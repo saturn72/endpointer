@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,12 +20,13 @@ import (
 const uploadURLExpiry = 5 * time.Minute
 
 type Handler struct {
-	Datafeeds *mongo.Collection
-	Endpoints *mongo.Collection
-	DB        *mongo.Database
-	Presigner *s3.PresignClient
-	Bucket    string
-	Now       func() time.Time
+	Datafeeds    *mongo.Collection
+	Endpoints    *mongo.Collection
+	DB           *mongo.Database
+	Presigner    *s3.PresignClient
+	Bucket       string
+	ServiceToken string
+	Now          func() time.Time
 }
 
 type datafeedDoc struct {
@@ -351,6 +353,19 @@ func writeMongoError(w http.ResponseWriter, err error, kind string) {
 	writeError(w, http.StatusInternalServerError, "failed to save "+kind)
 }
 
+// RequireServiceToken rejects requests that lack the shared dashboard credential, before owner headers are read.
+func RequireServiceToken(token string, next http.Handler) http.Handler {
+	want := []byte("Bearer " + token)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got := []byte(r.Header.Get("Authorization"))
+		if token == "" || subtle.ConstantTimeCompare(got, want) != 1 {
+			writeError(w, http.StatusUnauthorized, "missing or invalid service credential")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func Router(h *Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", h.Healthz)
@@ -361,5 +376,11 @@ func Router(h *Handler) http.Handler {
 	mux.HandleFunc("POST /endpoints", h.CreateEndpoint)
 	mux.HandleFunc("GET /endpoints", h.ListEndpoints)
 	mux.HandleFunc("GET /endpoints/{name}", h.GetEndpoint)
-	return mux
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			mux.ServeHTTP(w, r)
+			return
+		}
+		RequireServiceToken(h.ServiceToken, mux).ServeHTTP(w, r)
+	})
 }

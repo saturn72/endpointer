@@ -39,6 +39,7 @@ async function managerRequest<T>(path: string, init: RequestInit = {}): Promise<
         cache: 'no-store',
         headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.MANAGER_SERVICE_TOKEN ?? ''}`,
             'X-Owner-ID': id,
             'X-Owner-Username': username,
             ...(init.headers ?? {}),

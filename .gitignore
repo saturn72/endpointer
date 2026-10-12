@@ -19,3 +19,6 @@ src/dashboard/test-results/
 .vscode/settings.json
 .vscode/mcp.json
 .deploy/casdoor/init_data.json
+
+# Local compose env (secrets)
+.deploy/.env

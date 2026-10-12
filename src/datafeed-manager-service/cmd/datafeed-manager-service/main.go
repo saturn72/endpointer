@@ -21,6 +21,10 @@ import (
 
 func main() {
 	cfg := loadConfig()
+	if cfg.serviceToken == "" {
+		slog.Error("MANAGER_SERVICE_TOKEN is required")
+		os.Exit(1)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 	mongoClient, db, err := mongoclient.New(ctx, mongoclient.Config{URI: cfg.mongoURI, DB: cfg.mongoDB})
@@ -39,7 +43,7 @@ func main() {
 		s3Options.BaseEndpoint = &cfg.s3Endpoint
 	}
 	s3Client := s3.New(s3Options)
-	h := &manager.Handler{Datafeeds: db.Collection("datafeeds"), Endpoints: db.Collection("endpoints"), DB: db, Presigner: s3.NewPresignClient(s3Client), Bucket: cfg.rawBucket}
+	h := &manager.Handler{Datafeeds: db.Collection("datafeeds"), Endpoints: db.Collection("endpoints"), DB: db, Presigner: s3.NewPresignClient(s3Client), Bucket: cfg.rawBucket, ServiceToken: cfg.serviceToken}
 	srv := &http.Server{Addr: ":" + cfg.port, Handler: manager.Router(h)}
 	go func() { <-ctx.Done(); _ = srv.Shutdown(context.Background()) }()
 	slog.Info("datafeed-manager-service listening", "addr", srv.Addr)
@@ -49,10 +53,10 @@ func main() {
 	}
 }
 
-type config struct{ port, mongoURI, mongoDB, s3Endpoint, s3Region, s3AccessKey, s3SecretKey, rawBucket string }
+type config struct{ port, mongoURI, mongoDB, s3Endpoint, s3Region, s3AccessKey, s3SecretKey, rawBucket, serviceToken string }
 
 func loadConfig() config {
-	return config{port: env("PORT", "8080"), mongoURI: env("MONGODB_URI", "mongodb://localhost:27017"), mongoDB: env("MONGODB_DB", "endpointer"), s3Endpoint: env("S3_ENDPOINT", ""), s3Region: env("S3_REGION", "us-east-1"), s3AccessKey: os.Getenv("S3_ACCESS_KEY_ID"), s3SecretKey: os.Getenv("S3_SECRET_ACCESS_KEY"), rawBucket: env("S3_RAW_BUCKET", "raw-uploads")}
+	return config{port: env("PORT", "8080"), mongoURI: env("MONGODB_URI", "mongodb://localhost:27017"), mongoDB: env("MONGODB_DB", "endpointer"), s3Endpoint: env("S3_ENDPOINT", ""), s3Region: env("S3_REGION", "us-east-1"), s3AccessKey: os.Getenv("S3_ACCESS_KEY_ID"), s3SecretKey: os.Getenv("S3_SECRET_ACCESS_KEY"), rawBucket: env("S3_RAW_BUCKET", "raw-uploads"), serviceToken: os.Getenv("MANAGER_SERVICE_TOKEN")}
 }
 func env(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
