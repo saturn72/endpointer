@@ -95,7 +95,7 @@ services:
     image: postgres:16
     environment:
       POSTGRES_USER: casdoor
-      POSTGRES_PASSWORD: casdoor
+      POSTGRES_PASSWORD: ${CASDOOR_DB_PASSWORD:-casdoor}
       POSTGRES_DB: casdoor
     volumes:
       - casdoor-db-data:/var/lib/postgresql/data
@@ -106,6 +106,8 @@ services:
     image: casbin/casdoor:latest
     depends_on:
       - casdoor-db
+    environment:
+      dataSourceName: user=casdoor password=${CASDOOR_DB_PASSWORD:-casdoor} host=casdoor-db port=5432 sslmode=disable dbname=casdoor
     ports:
       - "8000:8000"
     volumes:
