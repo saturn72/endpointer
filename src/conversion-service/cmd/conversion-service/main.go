@@ -65,6 +65,13 @@ func main() {
 			slog.Info("webhook received raw file", "key", key)
 			if err := processEvent(ctx, s3Client, cfg.rawBucket, cfg.convertedBucket, key); err != nil {
 				slog.Error("conversion failed", "key", key, "error", err)
+				var rejected *rejectedError
+				if errors.As(err, &rejected) {
+					// Rejected uploads are never reprocessed, so remove the object instead of leaving an orphan.
+					if _, derr := s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(cfg.rawBucket), Key: aws.String(key)}); derr != nil {
+						slog.Error("deleting rejected object", "key", key, "error", derr)
+					}
+				}
 			}
 		case strings.HasPrefix(p.Key, convertedPrefix) && cfg.versioningWebhookURL != "":
 			forwardWebhook(p, cfg.versioningWebhookURL)
@@ -103,6 +110,12 @@ func main() {
 	slog.Info("conversion-service stopped cleanly")
 }
 
+// rejectedError marks input that is permanently invalid, as opposed to a transient storage failure.
+type rejectedError struct{ err error }
+
+func (e *rejectedError) Error() string { return e.err.Error() }
+func (e *rejectedError) Unwrap() error { return e.err }
+
 // processEvent fetches the raw CSV from S3, converts it to JSON, and writes
 // the result to the converted-feeds bucket. The warnings metadata key, if
 // present on the source object, is copied forward as required by the warning
@@ -131,6 +144,9 @@ func processEvent(ctx context.Context, s3c *s3.Client, rawBucket, convertedBucke
 	if filename == "" {
 		return fmt.Errorf("raw object %q has no original-filename metadata", key)
 	}
+	if err := validateRaw(filename, aws.ToInt64(getResp.ContentLength)); err != nil {
+		return &rejectedError{err: fmt.Errorf("rejecting %s: %w", key, err)}
+	}
 	// Route to format-specific converter by the original filename extension.
 	ext := ""
 	if i := strings.LastIndex(filename, "."); i >= 0 {
@@ -147,7 +163,7 @@ func processEvent(ctx context.Context, s3c *s3.Client, rawBucket, convertedBucke
 	}
 	if err != nil {
 		// Log and skip — do not crash the service on bad input.
-		return fmt.Errorf("converting %s: %w", key, err)
+		return &rejectedError{err: fmt.Errorf("converting %s: %w", key, err)}
 	}
 
 	// Build the destination key: {datafeed_id}/{upload_uuid}/data.json
