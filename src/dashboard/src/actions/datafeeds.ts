@@ -60,8 +60,8 @@ export async function createDatafeed(formData: FormData) {
             await managerCreateEndpoint({ name: endpointName, datafeed_id: datafeedId });
         } catch (err: unknown) {
             const reason = String(err).includes('already exists')
-                    ? `an endpoint named "${endpointName}" already exists`
-                    : 'a server error occurred';
+                ? `an endpoint named "${endpointName}" already exists`
+                : 'a server error occurred';
             if (!String(err).includes('already exists')) console.error('createDatafeed: endpoint insert failed', err);
             fail(`Datafeed created, but the endpoint was not: ${reason}. You can create it from the datafeed page.`, `${DATAFEEDS_PATH}/${datafeedId}?error=`);
         }
